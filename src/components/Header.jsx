@@ -48,9 +48,9 @@ function Header() {
 
       <HStack spacing={4}>
         <Text fontSize="sm" color="gray.600">
-          김프로 님
+          카리나 님
         </Text>
-        <Avatar size="sm" name="김프로" bg="secondary.500" />
+        <Avatar size="sm" name="카리나" bg="secondary.500" />
         <Button size="sm" variant="ghost" onClick={handleLogout}>
           로그아웃
         </Button>

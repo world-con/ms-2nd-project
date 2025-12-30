@@ -23,8 +23,8 @@ embeddings = AzureOpenAIEmbeddings(
 
 # 추가 : rag_chat.py에서 가져온 GPT 모델 설정 코드
 llm = AzureChatOpenAI(
-    azure_deployment="o4-mini", # 본인 배포 이름 확인 (gpt-4o)
-    openai_api_version="2024-12-01-preview",
+    azure_deployment="AZURE_OPENAI_DEPLOYMENT_NAME", # 본인 배포 이름 확인 (gpt-4o)
+    openai_api_version="AZURE_OPENAI_API_VERSION",
         # 사실 기반 답변을 위해 0으로 설정
 )
 

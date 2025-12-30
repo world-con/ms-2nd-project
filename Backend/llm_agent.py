@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from openai import AzureOpenAI, BadRequestError
+from openai import AzureOpenAI
 
 # 모듈 import 
 import outlook_service 

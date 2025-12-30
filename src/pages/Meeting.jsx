@@ -73,8 +73,10 @@ function Meeting() {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     }
-    return () => clearInterval(timer);
-  }, [isRecording, isPaused, setRecordingTime]);
+    return () => {
+      if (timer) clearInterval(timer); // ✅ 조건 추가
+    };
+  }, [isRecording, isPaused]); // ✅ setRecordingTime 제거
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);

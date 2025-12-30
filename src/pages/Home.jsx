@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Box,
   Heading,
@@ -12,86 +12,99 @@ import {
   InputGroup,
   InputRightElement,
   Divider,
-} from '@chakra-ui/react'
-import { useNavigate } from 'react-router-dom'
-import { FiMic, FiClock, FiAlertCircle, FiSend, FiMessageCircle } from 'react-icons/fi'
-import Card from '../components/Card'
-import { mockMeetings, mockOpenIssues, mockSuggestedAgenda } from '../data/mockData'
-import { useAppContext } from '../context/AppContext'
+} from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
+import {
+  FiMic,
+  FiClock,
+  FiAlertCircle,
+  FiSend,
+  FiMessageCircle,
+} from "react-icons/fi";
+import Card from "../components/Card";
+import {
+  mockMeetings,
+  mockOpenIssues,
+  mockSuggestedAgenda,
+} from "../data/mockData";
+import { useAppContext } from "../context/AppContext";
 
 function Home() {
-  const navigate = useNavigate()
-  const { startMeeting } = useAppContext()
+  const navigate = useNavigate();
+  const { startMeeting } = useAppContext();
   const [chatMessages, setChatMessages] = useState([
     {
       id: 1,
-      sender: 'ai',
-      text: '안녕하세요! 이음 AI 비서입니다. 무엇을 도와드릴까요? 😊',
-      time: '10:30',
+      sender: "ai",
+      text: "안녕하세요! 이음 AI 비서입니다. 무엇을 도와드릴까요? 😊",
+      time: "10:30",
     },
-  ])
-  const [chatInput, setChatInput] = useState('')
+  ]);
+  const [chatInput, setChatInput] = useState("");
 
   const handleStartMeeting = () => {
     const newMeeting = {
       id: Date.now(),
-      title: '새 회의',
-      date: new Date().toISOString().split('T')[0],
-      startTime: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-    }
-    startMeeting(newMeeting)
-    navigate('/meeting')
-  }
+      title: "새 회의",
+      date: new Date().toISOString().split("T")[0],
+      startTime: new Date().toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+    startMeeting(newMeeting);
+    navigate("/meeting");
+  };
 
   const handleSendMessage = () => {
-    if (chatInput.trim() === '') return
+    if (chatInput.trim() === "") return;
 
     // 사용자 메시지 추가
     const userMessage = {
       id: Date.now(),
-      sender: 'user',
+      sender: "user",
       text: chatInput,
-      time: new Date().toLocaleTimeString('ko-KR', {
-        hour: '2-digit',
-        minute: '2-digit',
+      time: new Date().toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
       }),
-    }
-    setChatMessages([...chatMessages, userMessage])
+    };
+    setChatMessages([...chatMessages, userMessage]);
 
     // AI 응답 시뮬레이션
     setTimeout(() => {
       const aiResponse = {
         id: Date.now() + 1,
-        sender: 'ai',
+        sender: "ai",
         text: getAIResponse(chatInput),
-        time: new Date().toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
+        time: new Date().toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
         }),
-      }
-      setChatMessages((prev) => [...prev, aiResponse])
-    }, 1000)
+      };
+      setChatMessages((prev) => [...prev, aiResponse]);
+    }, 1000);
 
-    setChatInput('')
-  }
+    setChatInput("");
+  };
 
   const getAIResponse = (input) => {
-    const lowerInput = input.toLowerCase()
-    if (lowerInput.includes('회의') || lowerInput.includes('미팅')) {
-      return '지난 회의 내역을 확인하실 수 있습니다. 아래 "최근 회의" 목록을 확인해보세요!'
-    } else if (lowerInput.includes('이슈') || lowerInput.includes('미해결')) {
-      return `현재 ${mockOpenIssues.length}개의 미해결 이슈가 있습니다. 왼쪽 카드를 확인해보세요!`
-    } else if (lowerInput.includes('안녕') || lowerInput.includes('하이')) {
-      return '안녕하세요! 오늘도 좋은 하루 보내세요 😊'
+    const lowerInput = input.toLowerCase();
+    if (lowerInput.includes("회의") || lowerInput.includes("미팅")) {
+      return '지난 회의 내역을 확인하실 수 있습니다. 아래 "최근 회의" 목록을 확인해보세요!';
+    } else if (lowerInput.includes("이슈") || lowerInput.includes("미해결")) {
+      return `현재 ${mockOpenIssues.length}개의 미해결 이슈가 있습니다. 왼쪽 카드를 확인해보세요!`;
+    } else if (lowerInput.includes("안녕") || lowerInput.includes("하이")) {
+      return "안녕하세요! 오늘도 좋은 하루 보내세요 😊";
     } else {
-      return '질문주셔서 감사합니다! 회의, 이슈, 과거 기록 등에 대해 물어보세요.'
+      return "질문주셔서 감사합니다! 회의, 이슈, 과거 기록 등에 대해 물어보세요.";
     }
-  }
+  };
 
   return (
     <Box>
       <Heading size="xl" mb={6}>
-        안녕하세요, 김프로님 👋
+        안녕하세요, 카리나님 👋
       </Heading>
 
       {/* 회의 시작 버튼 */}
@@ -112,7 +125,7 @@ function Home() {
             bg="white"
             color="primary.500"
             onClick={handleStartMeeting}
-            _hover={{ transform: 'scale(1.05)' }}
+            _hover={{ transform: "scale(1.05)" }}
             transition="all 0.2s"
           >
             회의 시작
@@ -143,11 +156,11 @@ function Home() {
             {chatMessages.map((msg) => (
               <HStack
                 key={msg.id}
-                justify={msg.sender === 'user' ? 'flex-end' : 'flex-start'}
+                justify={msg.sender === "user" ? "flex-end" : "flex-start"}
               >
                 <Box
-                  bg={msg.sender === 'user' ? 'primary.500' : 'white'}
-                  color={msg.sender === 'user' ? 'white' : 'gray.800'}
+                  bg={msg.sender === "user" ? "primary.500" : "white"}
+                  color={msg.sender === "user" ? "white" : "gray.800"}
                   px={4}
                   py={2}
                   borderRadius="12px"
@@ -157,7 +170,9 @@ function Home() {
                   <Text fontSize="sm">{msg.text}</Text>
                   <Text
                     fontSize="xs"
-                    color={msg.sender === 'user' ? 'whiteAlpha.800' : 'gray.500'}
+                    color={
+                      msg.sender === "user" ? "whiteAlpha.800" : "gray.500"
+                    }
                     mt={1}
                   >
                     {msg.time}
@@ -174,7 +189,7 @@ function Home() {
             placeholder="이음 AI에게 물어보세요... (예: 지난 회의 내용은?)"
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
             bg="white"
             borderColor="gray.300"
           />
@@ -220,7 +235,7 @@ function Home() {
                 borderLeft="4px solid"
                 borderColor="red.500"
                 cursor="pointer"
-                _hover={{ bg: 'red.100' }}
+                _hover={{ bg: "red.100" }}
               >
                 <Text fontWeight="bold" fontSize="sm" mb={1}>
                   {issue.title}
@@ -284,7 +299,7 @@ function Home() {
               bg="gray.50"
               borderRadius="12px"
               cursor="pointer"
-              _hover={{ bg: 'gray.100', transform: 'translateY(-2px)' }}
+              _hover={{ bg: "gray.100", transform: "translateY(-2px)" }}
               transition="all 0.2s"
               onClick={() => navigate(`/result/${meeting.id}`)}
             >
@@ -307,7 +322,9 @@ function Home() {
                   <Text color="gray.600">결정사항</Text>
                 </HStack>
                 <HStack>
-                  <Badge colorScheme="orange">{meeting.actionItems.length}</Badge>
+                  <Badge colorScheme="orange">
+                    {meeting.actionItems.length}
+                  </Badge>
                   <Text color="gray.600">액션 아이템</Text>
                 </HStack>
                 {meeting.openIssues && (
@@ -322,7 +339,7 @@ function Home() {
         </VStack>
       </Card>
     </Box>
-  )
+  );
 }
 
-export default Home
+export default Home;

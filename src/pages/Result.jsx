@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Box,
   Heading,
@@ -15,16 +15,21 @@ import {
   Button,
   SimpleGrid,
   useToast,
-} from '@chakra-ui/react'
-import { FiFileText, FiTrendingUp, FiCheckCircle, FiDownload } from 'react-icons/fi'
-import Card from '../components/Card'
-import ApprovalCenter from '../components/ApprovalCenter'
-import { mockMeetingResult } from '../data/mockData'
+} from "@chakra-ui/react";
+import {
+  FiFileText,
+  FiTrendingUp,
+  FiCheckCircle,
+  FiDownload,
+} from "react-icons/fi";
+import Card from "../components/Card";
+import ApprovalCenter from "../components/ApprovalCenter";
+import { mockMeetingResult } from "../data/mockData";
 
 function Result() {
-  const [tabIndex, setTabIndex] = useState(0)
-  const meeting = mockMeetingResult
-  const toast = useToast()
+  const [tabIndex, setTabIndex] = useState(0);
+  const meeting = mockMeetingResult;
+  const toast = useToast();
 
   // 회의록 다운로드 함수
   const handleDownloadMinutes = () => {
@@ -33,7 +38,7 @@ function Result() {
 
 회의명: ${meeting.title}
 일시: ${meeting.date} ${meeting.startTime} - ${meeting.endTime}
-참석자: ${meeting.participants.join(', ')}
+참석자: ${meeting.participants.join(", ")}
 소요시간: ${meeting.duration}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -44,22 +49,33 @@ ${meeting.summary}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✅ 주요 결정사항 (${meeting.decisions.length}개)
-${meeting.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
+${meeting.decisions.map((d, i) => `${i + 1}. ${d}`).join("\n")}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🎯 TO-DO LIST (${todoList.length}개)
-${todoList.map((item, i) => `
+${todoList
+  .map(
+    (item, i) => `
 ${i + 1}. ${item.task}
    담당자: ${item.assignee}
    마감일: ${item.deadline}
-   상태: ${item.status === 'completed' ? '완료' : '진행 중'}
-`).join('\n')}
+   상태: ${item.status === "completed" ? "완료" : "진행 중"}
+`
+  )
+  .join("\n")}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ 미해결 이슈 (${meeting.openIssues?.length || 0}개)
-${meeting.openIssues?.map((issue, i) => `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`).join('\n') || '없음'}
+${
+  meeting.openIssues
+    ?.map(
+      (issue, i) =>
+        `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`
+    )
+    .join("\n") || "없음"
+}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -68,84 +84,86 @@ ${meeting.transcript}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-생성일시: ${new Date().toLocaleString('ko-KR')}
+생성일시: ${new Date().toLocaleString("ko-KR")}
 생성자: 이음 AI 회의 서비스
-    `
+    `;
 
-    const blob = new Blob([minutesContent], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `이음_회의록_${meeting.date}_${meeting.title}.txt`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    const blob = new Blob([minutesContent], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `이음_회의록_${meeting.date}_${meeting.title}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
     toast({
-      title: '회의록 다운로드 완료',
-      description: 'RAG 양식으로 회의록이 다운로드되었습니다.',
-      status: 'success',
+      title: "회의록 다운로드 완료",
+      description: "RAG 양식으로 회의록이 다운로드되었습니다.",
+      status: "success",
       duration: 3000,
       isClosable: true,
-    })
-  }
+    });
+  };
 
   // TO-DO LIST 편집 저장
   const handleSaveTodoList = () => {
-    setTodoList([...editedTodoList])
-    setIsEditingTodo(false)
+    setTodoList([...editedTodoList]);
+    setIsEditingTodo(false);
     toast({
-      title: 'TO-DO LIST 저장 완료',
-      description: '변경사항이 저장되었습니다.',
-      status: 'success',
+      title: "TO-DO LIST 저장 완료",
+      description: "변경사항이 저장되었습니다.",
+      status: "success",
       duration: 2000,
       isClosable: true,
-    })
-  }
+    });
+  };
 
   // TO-DO LIST 편집 취소
   const handleCancelTodoEdit = () => {
-    setEditedTodoList([...todoList])
-    setIsEditingTodo(false)
-  }
+    setEditedTodoList([...todoList]);
+    setIsEditingTodo(false);
+  };
 
   // TO-DO 항목 수정
   const handleTodoChange = (index, field, value) => {
-    const updated = [...editedTodoList]
-    updated[index] = { ...updated[index], [field]: value }
-    setEditedTodoList(updated)
-  }
+    const updated = [...editedTodoList];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditedTodoList(updated);
+  };
 
   // TO-DO 항목 추가
   const handleAddTodo = () => {
     setEditedTodoList([
       ...editedTodoList,
       {
-        task: '새 작업',
-        assignee: '담당자',
-        deadline: '2025-12-31',
-        status: 'pending',
+        task: "새 작업",
+        assignee: "담당자",
+        deadline: "2025-12-31",
+        status: "pending",
       },
-    ])
-  }
+    ]);
+  };
 
   // TO-DO 항목 삭제
   const handleDeleteTodo = (index) => {
-    const updated = editedTodoList.filter((_, i) => i !== index)
-    setEditedTodoList(updated)
-  }
+    const updated = editedTodoList.filter((_, i) => i !== index);
+    setEditedTodoList(updated);
+  };
 
   // TO-DO LIST 메일 발송
   const handleSendTodoEmail = () => {
     toast({
-      title: 'TO-DO LIST 메일 발송',
-      description: 'TO-DO LIST가 담당자들에게 메일로 발송되었습니다.',
-      status: 'success',
+      title: "TO-DO LIST 메일 발송",
+      description: "TO-DO LIST가 담당자들에게 메일로 발송되었습니다.",
+      status: "success",
       duration: 3000,
       isClosable: true,
-    })
-  }
+    });
+  };
 
   return (
     <Box>
@@ -161,15 +179,24 @@ ${meeting.transcript}
               colorScheme="whiteAlpha"
               variant="solid"
               onClick={handleDownloadMinutes}
-              size="sm"
+              size="lg"
+              px={12}
+              py={8}
+              fontSize="lg"
+              fontWeight="bold"
+              height="60px"
+              _hover={{ transform: "scale(0.9)", boxShadow: "lg" }}
+              transition="all 0.2s"
             >
-              회의록 다운로드
+              RAG Custom 회의록
             </Button>
           </HStack>
           <HStack fontSize="sm" color="whiteAlpha.900">
             <Text>{meeting.date}</Text>
             <Text>·</Text>
-            <Text>{meeting.startTime} - {meeting.endTime}</Text>
+            <Text>
+              {meeting.startTime} - {meeting.endTime}
+            </Text>
             <Text>·</Text>
             <Text>{meeting.duration}</Text>
             <Text>·</Text>
@@ -350,18 +377,18 @@ ${meeting.transcript}
                     <Box
                       key={i}
                       p={4}
-                      bg={risk.level === 'high' ? 'red.50' : 'yellow.50'}
+                      bg={risk.level === "high" ? "red.50" : "yellow.50"}
                       borderRadius="8px"
                       borderLeft="4px solid"
                       borderColor={
-                        risk.level === 'high' ? 'red.500' : 'yellow.500'
+                        risk.level === "high" ? "red.500" : "yellow.500"
                       }
                     >
                       <HStack justify="space-between" mb={2}>
                         <Badge
-                          colorScheme={risk.level === 'high' ? 'red' : 'yellow'}
+                          colorScheme={risk.level === "high" ? "red" : "yellow"}
                         >
-                          {risk.level === 'high' ? '높음' : '중간'}
+                          {risk.level === "high" ? "높음" : "중간"}
                         </Badge>
                       </HStack>
                       <Text>{risk.description}</Text>
@@ -401,12 +428,7 @@ ${meeting.transcript}
               {/* 차별화 포인트 강조 */}
               <Card bg="gradient.to-r, primary.50, secondary.50">
                 <HStack spacing={4} align="start">
-                  <Box
-                    p={3}
-                    bg="white"
-                    borderRadius="12px"
-                    boxShadow="sm"
-                  >
+                  <Box p={3} bg="white" borderRadius="12px" boxShadow="sm">
                     <Text fontSize="3xl">🚀</Text>
                   </Box>
                   <Box flex="1">
@@ -415,9 +437,15 @@ ${meeting.transcript}
                     </Heading>
                     <Text color="gray.700" fontSize="sm" lineHeight="1.8">
                       Notion AI는 회의록을 저장하는 것으로 끝나지만,
-                      <strong> 이음은 회의 종료 후 자동으로 실행까지 연결</strong>합니다.
+                      <strong>
+                        {" "}
+                        이음은 회의 종료 후 자동으로 실행까지 연결
+                      </strong>
+                      합니다.
                       <br />
-                      아래 항목을 체크하고 승인하면 <strong>수동 작업 15분을 3초로 단축</strong>할 수 있습니다.
+                      아래 항목을 체크하고 승인하면{" "}
+                      <strong>수동 작업 15분을 3초로 단축</strong>할 수
+                      있습니다.
                     </Text>
                   </Box>
                 </HStack>
@@ -430,7 +458,7 @@ ${meeting.transcript}
         </TabPanels>
       </Tabs>
     </Box>
-  )
+  );
 }
 
-export default Result
+export default Result;

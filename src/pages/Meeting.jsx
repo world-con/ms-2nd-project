@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Heading,
@@ -10,124 +10,148 @@ import {
   Textarea,
   Input,
   Flex,
-} from '@chakra-ui/react'
-import { keyframes } from '@emotion/react'
-import { useNavigate } from 'react-router-dom'
-import { FiMic, FiSquare, FiPause, FiPlay, FiSend } from 'react-icons/fi'
-import Card from '../components/Card'
-import { useAppContext } from '../context/AppContext'
+} from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
+import { useNavigate } from "react-router-dom";
+import { FiMic, FiSquare, FiPause, FiPlay, FiSend } from "react-icons/fi";
+import Card from "../components/Card";
+import { useAppContext } from "../context/AppContext";
 
 const pulse = keyframes`
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.2); opacity: 0.8; }
-`
+`;
 
 function Meeting() {
-  const navigate = useNavigate()
-  const { currentMeeting, isRecording, recordingTime, setRecordingTime, stopRecording } =
-    useAppContext()
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [sttTranscript, setSttTranscript] = useState('') // STT 전사 내용
+  const navigate = useNavigate();
+  const {
+    currentMeeting,
+    isRecording,
+    recordingTime,
+    setRecordingTime,
+    stopRecording,
+  } = useAppContext();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [sttTranscript, setSttTranscript] = useState(""); // STT 전사 내용
   const [aiMessages, setAiMessages] = useState([
-    { type: 'ai', text: '회의 중 궁금한 점이 있으면 물어보세요!', time: '14:35' },
-  ])
-  const [aiInput, setAiInput] = useState('')
+    {
+      type: "ai",
+      text: "회의 중 궁금한 점이 있으면 물어보세요!",
+      time: "14:35",
+    },
+  ]);
+  const [aiInput, setAiInput] = useState("");
 
   // STT 시뮬레이션 (더미 데이터)
   useEffect(() => {
     if (isRecording && !isPaused) {
       const timer = setTimeout(() => {
         const dummyTexts = [
-          '[김프로] 오늘 회의 시작하겠습니다. 먼저 지난 회의 내용을 간단히 리뷰하겠습니다.',
-          '[박팀장] 네, RAG 구현 부분은 진행 중입니다. 이번 주 내로 완료 예정입니다.',
-          '[이매니저] 프론트엔드는 80% 완료되었고, 승인센터 기능을 추가 중입니다.',
-          '[김프로] 좋습니다. 다음 주 데모 준비는 어떻게 되고 있나요?',
-          '[박팀장] 데모 시나리오는 작성 완료했고, 실제 시연 준비 중입니다.',
-        ]
-        
+          "[김프로] 오늘 회의 시작하겠습니다. 먼저 지난 회의 내용을 간단히 리뷰하겠습니다.",
+          "[박팀장] 네, RAG 구현 부분은 진행 중입니다. 이번 주 내로 완료 예정입니다.",
+          "[이매니저] 프론트엔드는 80% 완료되었고, 승인센터 기능을 추가 중입니다.",
+          "[김프로] 좋습니다. 다음 주 데모 준비는 어떻게 되고 있나요?",
+          "[박팀장] 데모 시나리오는 작성 완료했고, 실제 시연 준비 중입니다.",
+        ];
+
         if (recordingTime > 0 && recordingTime % 5 === 0) {
-          const randomIndex = Math.floor(Math.random() * dummyTexts.length)
-          setSttTranscript((prev) => 
-            prev + (prev ? '\n\n' : '') + dummyTexts[randomIndex]
-          )
+          const randomIndex = Math.floor(Math.random() * dummyTexts.length);
+          setSttTranscript(
+            (prev) => prev + (prev ? "\n\n" : "") + dummyTexts[randomIndex]
+          );
         }
-      }, 100)
-      return () => clearTimeout(timer)
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isRecording, isPaused, recordingTime])
+  }, [isRecording, isPaused, recordingTime]);
 
   useEffect(() => {
-    let timer
+    let timer;
     if (isRecording && !isPaused) {
       timer = setInterval(() => {
-        setRecordingTime((prev) => prev + 1)
-      }, 1000)
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
     }
-    return () => clearInterval(timer)
-  }, [isRecording, isPaused, setRecordingTime])
+    return () => clearInterval(timer);
+  }, [isRecording, isPaused, setRecordingTime]);
 
   const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
   const handlePauseResume = () => {
-    setIsPaused(!isPaused)
-  }
+    setIsPaused(!isPaused);
+  };
 
   const handleStopRecording = () => {
-    stopRecording()
-    setIsProcessing(true)
+    stopRecording();
+    setIsProcessing(true);
 
     // 2초 후 결과 화면으로 이동 (시뮬레이션)
     setTimeout(() => {
-      setIsProcessing(false)
-      navigate('/result/999')
-    }, 2000)
-  }
+      setIsProcessing(false);
+      navigate("/result/999");
+    }, 2000);
+  };
 
   const handleAiSend = () => {
-    if (!aiInput.trim()) return
+    if (!aiInput.trim()) return;
 
     const newMessage = {
-      type: 'user',
+      type: "user",
       text: aiInput,
-      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-    }
-    
-    setAiMessages((prev) => [...prev, newMessage])
-    
+      time: new Date().toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    setAiMessages((prev) => [...prev, newMessage]);
+
     // AI 응답 시뮬레이션
     setTimeout(() => {
-      let aiResponse = ''
-      if (aiInput.includes('회의') || aiInput.includes('지난')) {
-        aiResponse = '지난 회의는 2025-12-20에 진행되었고, RAG 구현과 프론트엔드 개발이 주요 안건이었습니다.'
-      } else if (aiInput.includes('이슈') || aiInput.includes('문제')) {
-        aiResponse = '현재 미해결 이슈는 "Outlook API 연동"과 "STT 정확도 개선"입니다.'
+      let aiResponse = "";
+      if (aiInput.includes("회의") || aiInput.includes("지난")) {
+        aiResponse =
+          "지난 회의는 2025-12-20에 진행되었고, RAG 구현과 프론트엔드 개발이 주요 안건이었습니다.";
+      } else if (aiInput.includes("이슈") || aiInput.includes("문제")) {
+        aiResponse =
+          '현재 미해결 이슈는 "Outlook API 연동"과 "STT 정확도 개선"입니다.';
       } else {
-        aiResponse = '네, 무엇을 도와드릴까요? 회의 내용이나 과거 기록에 대해 질문해주세요.'
+        aiResponse =
+          "네, 무엇을 도와드릴까요? 회의 내용이나 과거 기록에 대해 질문해주세요.";
       }
-      
+
       setAiMessages((prev) => [
         ...prev,
         {
-          type: 'ai',
+          type: "ai",
           text: aiResponse,
-          time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         },
-      ])
-    }, 500)
-    
-    setAiInput('')
-  }
+      ]);
+    }, 500);
+
+    setAiInput("");
+  };
 
   if (isProcessing) {
     return (
       <Box textAlign="center" py={20}>
         <VStack spacing={6}>
-          <Circle size="100px" bg="primary.500" animation={`${pulse} 1.5s ease-in-out infinite`}>
+          <Circle
+            size="100px"
+            bg="primary.500"
+            animation={`${pulse} 1.5s ease-in-out infinite`}
+          >
             <FiMic size={40} color="white" />
           </Circle>
           <Heading size="lg" color="primary.500">
@@ -138,7 +162,7 @@ function Meeting() {
           </Text>
         </VStack>
       </Box>
-    )
+    );
   }
 
   return (
@@ -162,9 +186,9 @@ function Meeting() {
                 {formatTime(recordingTime)}
               </Heading>
               <HStack>
-                <Circle size="12px" bg={isPaused ? 'orange.500' : 'red.500'} />
+                <Circle size="12px" bg={isPaused ? "orange.500" : "red.500"} />
                 <Text fontSize="lg" color="gray.600">
-                  {isPaused ? '일시정지 중' : '녹음 중'}
+                  {isPaused ? "일시정지 중" : "녹음 중"}
                 </Text>
               </HStack>
             </VStack>
@@ -173,14 +197,14 @@ function Meeting() {
             <HStack spacing={4}>
               <Button
                 size="lg"
-                colorScheme={isPaused ? 'green' : 'orange'}
+                colorScheme={isPaused ? "green" : "orange"}
                 leftIcon={isPaused ? <FiPlay /> : <FiPause />}
                 onClick={handlePauseResume}
                 w="150px"
-                _hover={{ transform: 'scale(1.05)' }}
+                _hover={{ transform: "scale(1.05)" }}
                 transition="all 0.2s"
               >
-                {isPaused ? '재개' : '일시정지'}
+                {isPaused ? "재개" : "일시정지"}
               </Button>
 
               <Button
@@ -189,7 +213,7 @@ function Meeting() {
                 leftIcon={<FiSquare />}
                 onClick={handleStopRecording}
                 w="150px"
-                _hover={{ transform: 'scale(1.05)' }}
+                _hover={{ transform: "scale(1.05)" }}
                 transition="all 0.2s"
               >
                 회의 종료
@@ -207,7 +231,7 @@ function Meeting() {
             bg="gray.50"
             p={4}
             borderRadius="8px"
-            maxH="300px"
+            h="calc(55vh - 150px)"
             overflowY="auto"
             border="1px solid"
             borderColor="gray.200"
@@ -250,7 +274,7 @@ function Meeting() {
           <Heading size="sm" mb={4}>
             💬 이음 AI 비서
           </Heading>
-          
+
           {/* 채팅 메시지 */}
           <Box
             flex="1"
@@ -264,19 +288,24 @@ function Meeting() {
               {aiMessages.map((msg, idx) => (
                 <Box
                   key={idx}
-                  alignSelf={msg.type === 'user' ? 'flex-end' : 'flex-start'}
+                  alignSelf={msg.type === "user" ? "flex-end" : "flex-start"}
                   maxW="85%"
                 >
                   <Box
-                    bg={msg.type === 'user' ? 'primary.500' : 'white'}
-                    color={msg.type === 'user' ? 'white' : 'gray.800'}
+                    bg={msg.type === "user" ? "primary.500" : "white"}
+                    color={msg.type === "user" ? "white" : "gray.800"}
                     p={3}
                     borderRadius="12px"
                     boxShadow="sm"
                   >
                     <Text fontSize="sm">{msg.text}</Text>
                   </Box>
-                  <Text fontSize="xs" color="gray.500" mt={1} textAlign={msg.type === 'user' ? 'right' : 'left'}>
+                  <Text
+                    fontSize="xs"
+                    color="gray.500"
+                    mt={1}
+                    textAlign={msg.type === "user" ? "right" : "left"}
+                  >
                     {msg.time}
                   </Text>
                 </Box>
@@ -290,7 +319,7 @@ function Meeting() {
               placeholder="질문을 입력하세요..."
               value={aiInput}
               onChange={(e) => setAiInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleAiSend()}
+              onKeyPress={(e) => e.key === "Enter" && handleAiSend()}
               size="sm"
             />
             <Button
@@ -305,7 +334,7 @@ function Meeting() {
         </Card>
       </Box>
     </Flex>
-  )
+  );
 }
 
-export default Meeting
+export default Meeting;

@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { FiMic, FiSquare, FiPause, FiPlay, FiSend } from "react-icons/fi";
 import Card from "../components/Card";
 import { useAppContext } from "../context/AppContext";
+import { useWhisper } from "../hooks/useWhisper";
 
 const pulse = keyframes`
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -43,28 +44,34 @@ function Meeting() {
   ]);
   const [aiInput, setAiInput] = useState("");
 
-  // STT 시뮬레이션 (더미 데이터)
-  useEffect(() => {
-    if (isRecording && !isPaused) {
-      const timer = setTimeout(() => {
-        const dummyTexts = [
-          "[김프로] 오늘 회의 시작하겠습니다. 먼저 지난 회의 내용을 간단히 리뷰하겠습니다.",
-          "[박팀장] 네, RAG 구현 부분은 진행 중입니다. 이번 주 내로 완료 예정입니다.",
-          "[이매니저] 프론트엔드는 80% 완료되었고, 승인센터 기능을 추가 중입니다.",
-          "[김프로] 좋습니다. 다음 주 데모 준비는 어떻게 되고 있나요?",
-          "[박팀장] 데모 시나리오는 작성 완료했고, 실제 시연 준비 중입니다.",
-        ];
+  // useWhisper 훅 초기화
+  const {
+    isRecording: isWhisperRecording,
+    isPaused: isWhisperPaused,
+    transcript: liveTranscript,
+    startRecording,
+    stopRecording: stopWhisperRecording,
+    pauseRecording,
+    resumeRecording,
+  } = useWhisper({
+    chunkSec: 30, // 백엔드 설정과 동기화
+    wsUrl: "ws://localhost:8000/ws",
+    uploadUrl: "http://localhost:8000/chunk"
+  });
 
-        if (recordingTime > 0 && recordingTime % 5 === 0) {
-          const randomIndex = Math.floor(Math.random() * dummyTexts.length);
-          setSttTranscript(
-            (prev) => prev + (prev ? "\n\n" : "") + dummyTexts[randomIndex]
-          );
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+  // 녹음 시작 처리
+  useEffect(() => {
+    if (isRecording && !isWhisperRecording) {
+      startRecording();
     }
-  }, [isRecording, isPaused, recordingTime]);
+  }, [isRecording, isWhisperRecording, startRecording]);
+
+  // STT 전사 내용 업데이트 (실시간)
+  useEffect(() => {
+    if (liveTranscript) {
+      setSttTranscript(liveTranscript);
+    }
+  }, [liveTranscript]);
 
   useEffect(() => {
     let timer;
@@ -85,11 +92,17 @@ function Meeting() {
   };
 
   const handlePauseResume = () => {
+    if (isPaused) {
+      resumeRecording();
+    } else {
+      pauseRecording();
+    }
     setIsPaused(!isPaused);
   };
 
-  const handleStopRecording = () => {
-    stopRecording();
+  const handleStopRecording = async () => {
+    await stopWhisperRecording();
+    stopRecording(); // Context 상태 업데이트
     setIsProcessing(true);
 
     // 2초 후 결과 화면으로 이동 (시뮬레이션)
@@ -113,18 +126,21 @@ function Meeting() {
 
     setAiMessages((prev) => [...prev, newMessage]);
 
-    // AI 응답 시뮬레이션
+    // AI 응답 시뮬레이션 (현재 전사 내용을 기반으로 한 맥락 인식)
     setTimeout(() => {
       let aiResponse = "";
-      if (aiInput.includes("회의") || aiInput.includes("지난")) {
-        aiResponse =
-          "지난 회의는 2025-12-20에 진행되었고, RAG 구현과 프론트엔드 개발이 주요 안건이었습니다.";
-      } else if (aiInput.includes("이슈") || aiInput.includes("문제")) {
-        aiResponse =
-          '현재 미해결 이슈는 "Outlook API 연동"과 "STT 정확도 개선"입니다.';
+      const lowerInput = aiInput.toLowerCase();
+
+      if (lowerInput.includes("회의") || lowerInput.includes("내용") || lowerInput.includes("지금")) {
+        if (sttTranscript) {
+          aiResponse = `현재까지의 회의 내용은 다음과 같습니다: \n\n${sttTranscript.slice(-200)}... (생략)`;
+        } else {
+          aiResponse = "현재 수집된 회의 내용이 아직 없습니다. 대화가 시작되면 분석해 드릴게요.";
+        }
+      } else if (lowerInput.includes("이슈") || lowerInput.includes("문제")) {
+        aiResponse = "실시간 전사 내용에서 이슈를 분석 중입니다. 아직 명확한 시스템 문제는 감지되지 않았습니다.";
       } else {
-        aiResponse =
-          "네, 무엇을 도와드릴까요? 회의 내용이나 과거 기록에 대해 질문해주세요.";
+        aiResponse = "네, 무엇을 도와드릴까요? 실시간 전사 내용에 대해 궁금한 점을 물어보세요.";
       }
 
       setAiMessages((prev) => [
@@ -225,7 +241,7 @@ function Meeting() {
         {/* STT 실시간 전사 창 */}
         <Card mt={6}>
           <Heading size="sm" mb={3}>
-            📝 실시간 전사 내용 (STT)
+            실시간 전사 내용 (STT)
           </Heading>
           <Box
             bg="gray.50"
@@ -252,7 +268,7 @@ function Meeting() {
         {currentMeeting && (
           <Card mt={6}>
             <Heading size="sm" mb={3}>
-              📅 새 회의
+              새 회의
             </Heading>
             <Box bg="gray.50" p={4} borderRadius="12px" w="full">
               <Text fontSize="lg" fontWeight="bold" mb={2}>
@@ -272,7 +288,7 @@ function Meeting() {
       <Box w="350px">
         <Card h="calc(100vh - 150px)" display="flex" flexDirection="column">
           <Heading size="sm" mb={4}>
-            💬 이음 AI 비서
+            이음 AI 비서
           </Heading>
 
           {/* 채팅 메시지 */}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -28,8 +28,39 @@ import { mockMeetingResult } from "../data/mockData";
 
 function Result() {
   const [tabIndex, setTabIndex] = useState(0);
-  const meeting = mockMeetingResult;
+  const [meeting, setMeeting] = useState(mockMeetingResult);
+  const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/result");
+        if (!response.ok) throw new Error("Failed to fetch results");
+        const data = await response.json();
+
+        // 백엔드 데이터: [{chunk, speaker, start, end, text}, ...]
+        // 이를 UI 형식에 맞게 변환
+        if (data && data.length > 0) {
+          const formattedTranscript = data
+            .map(r => `[${r.speaker}] ${r.text}`)
+            .join("\n\n");
+
+          setMeeting(prev => ({
+            ...prev,
+            transcript: formattedTranscript,
+            // 실시간으로 받은 데이터이므로 요약 등은 아직 mock을 유지하거나 서버 AI 연동 필요
+          }));
+        }
+      } catch (err) {
+        console.error("Result Fetch Error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, []);
 
   // 회의록 다운로드 함수
   const handleDownloadMinutes = () => {
@@ -55,27 +86,26 @@ ${meeting.decisions.map((d, i) => `${i + 1}. ${d}`).join("\n")}
 
 🎯 TO-DO LIST (${todoList.length}개)
 ${todoList
-  .map(
-    (item, i) => `
+        .map(
+          (item, i) => `
 ${i + 1}. ${item.task}
    담당자: ${item.assignee}
    마감일: ${item.deadline}
    상태: ${item.status === "completed" ? "완료" : "진행 중"}
 `
-  )
-  .join("\n")}
+        )
+        .join("\n")}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ 미해결 이슈 (${meeting.openIssues?.length || 0}개)
-${
-  meeting.openIssues
-    ?.map(
-      (issue, i) =>
-        `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`
-    )
-    .join("\n") || "없음"
-}
+${meeting.openIssues
+        ?.map(
+          (issue, i) =>
+            `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`
+        )
+        .join("\n") || "없음"
+      }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

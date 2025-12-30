@@ -55,54 +55,105 @@ function Upload() {
   });
   const toast = useToast();
 
-  // 파일 업로드 핸들러 (섹션별)
+  // 파일 크기 제한 (100MB)
+  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
+
+  // 파일 업로드 핸들러 (섹션별 + 용량 검증)
   const handleFileSelect = (event, section) => {
     const files = Array.from(event.target.files);
 
     if (files.length === 0) return;
 
-    // 업로드 시뮬레이션
-    setIsUploading((prev) => ({ ...prev, [section]: true }));
-    setUploadProgress((prev) => ({ ...prev, [section]: 0 }));
+    // 파일 크기 검증
+    const validFiles = [];
+    const invalidFiles = [];
 
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        const currentProgress = prev[section];
-        if (currentProgress >= 100) {
-          clearInterval(interval);
-          setIsUploading((prevState) => ({ ...prevState, [section]: false }));
+    files.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push({
+          name: file.name,
+          size: (file.size / (1024 * 1024)).toFixed(2) + " MB",
+        });
+      } else {
+        validFiles.push(file);
+      }
+    });
 
-          // 파일 추가
-          const newFiles = files.map((file, index) => ({
-            id: Date.now() + index,
-            name: file.name,
-            size: (file.size / (1024 * 1024)).toFixed(2) + " MB",
-            type: file.name.split(".").pop().toUpperCase(),
-            uploadDate: new Date().toISOString().split("T")[0],
-            status: "completed",
-          }));
+    // 용량 초과 파일이 있는 경우 경고
+    if (invalidFiles.length > 0) {
+      const invalidFilesList = invalidFiles
+        .map((f) => `• ${f.name} (${f.size})`)
+        .join("\n");
 
-          // 섹션별로 파일 추가
-          if (section === "ieum") {
-            setIeumFiles((prevFiles) => [...newFiles, ...prevFiles]);
-          } else if (section === "custom") {
-            setCustomFiles((prevFiles) => [...newFiles, ...prevFiles]);
-          } else if (section === "external") {
-            setExternalFiles((prevFiles) => [...newFiles, ...prevFiles]);
-          }
-
-          toast({
-            title: "업로드 완료! 🎉",
-            description: `${files.length}개 파일이 RAG 시스템에 추가되었습니다`,
-            status: "success",
-            duration: 3000,
-          });
-
-          return { ...prev, [section]: 0 };
-        }
-        return { ...prev, [section]: currentProgress + 10 };
+      toast({
+        title: "⚠️ 파일 크기 초과",
+        description: `다음 파일은 100MB를 초과하여 업로드할 수 없습니다:\n\n${invalidFilesList}\n\n파일을 압축하거나 분할 후 다시 시도해주세요.`,
+        status: "error",
+        duration: 6000,
+        isClosable: true,
       });
-    }, 200);
+
+      // 초과 파일만 있고 정상 파일이 없으면 종료
+      if (validFiles.length === 0) {
+        event.target.value = ""; // input 초기화
+        return;
+      }
+
+      // 일부 파일만 초과한 경우 안내
+      toast({
+        title: "📋 일부 파일만 업로드됩니다",
+        description: `${validFiles.length}개 파일은 정상적으로 업로드됩니다.`,
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+
+    // 정상 파일만 업로드 진행
+    if (validFiles.length > 0) {
+      setIsUploading((prev) => ({ ...prev, [section]: true }));
+      setUploadProgress((prev) => ({ ...prev, [section]: 0 }));
+
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          const currentProgress = prev[section];
+          if (currentProgress >= 100) {
+            clearInterval(interval);
+            setIsUploading((prevState) => ({ ...prevState, [section]: false }));
+
+            // 파일 추가
+            const newFiles = validFiles.map((file, index) => ({
+              id: Date.now() + index,
+              name: file.name,
+              size: (file.size / (1024 * 1024)).toFixed(2) + " MB",
+              type: file.name.split(".").pop().toUpperCase(),
+              uploadDate: new Date().toISOString().split("T")[0],
+              status: "completed",
+            }));
+
+            // 섹션별로 파일 추가
+            if (section === "ieum") {
+              setIeumFiles((prevFiles) => [...newFiles, ...prevFiles]);
+            } else if (section === "custom") {
+              setCustomFiles((prevFiles) => [...newFiles, ...prevFiles]);
+            } else if (section === "external") {
+              setExternalFiles((prevFiles) => [...newFiles, ...prevFiles]);
+            }
+
+            toast({
+              title: "✅ 업로드 완료!",
+              description: `${validFiles.length}개 파일이 RAG 시스템에 추가되었습니다`,
+              status: "success",
+              duration: 3000,
+            });
+
+            event.target.value = ""; // input 초기화
+            return { ...prev, [section]: 0 };
+          }
+          return { ...prev, [section]: currentProgress + 10 };
+        });
+      }, 200);
+    }
   };
 
   // 파일 삭제 핸들러 (섹션별)
@@ -171,8 +222,8 @@ function Upload() {
 
           <Text fontSize="xs" color="whiteAlpha.800">
             {acceptedFormats === ".pdf,.docx,.doc"
-              ? "PDF, DOCX 파일만"
-              : "PDF, DOCX, PPT, 이미지 등"}
+              ? "PDF, DOCX | 최대 100MB"
+              : "PDF, DOCX, PPT, 이미지 | 최대 100MB"}
           </Text>
         </VStack>
       </Box>
@@ -330,15 +381,18 @@ function Upload() {
           </Heading>
           <Text fontSize="sm" color="blue.700" lineHeight="1.8">
             • <strong>이음AI 회의록</strong>: 이음에서 자동 생성된 회의록 파일
-            (PDF, DOCX)
+            (PDF, DOCX | 최대 100MB)
             <br />• <strong>RAG Custom 회의록</strong>: 회사 전용 회의록 양식
-            템플릿 (PDF, DOCX)
+            템플릿 (PDF, DOCX | 최대 100MB)
             <br />• <strong>외부자료</strong>: 마케팅 자료, 리서치 문서 등 회의
-            인사이트 도출에 필요한 모든 자료 (PDF, DOCX, PPT, 이미지 등)
+            인사이트 도출에 필요한 모든 자료 (PDF, DOCX, PPT, 이미지 | 최대
+            100MB)
+            <br />• <strong>파일 크기 제한</strong>: 각 파일은 최대 100MB까지
+            업로드 가능합니다
             <br />
             • 업로드된 파일은 벡터 데이터베이스에 저장되며, 회의 중 AI가
             자동으로 관련 내용을 찾아드립니다
-            <br />• 보안을 위해 암호화되어 저장되며, 프로젝트 종료 후 3개월 뒤
+            <br />• 보안을 위해 암호화되어 저장되며, 프로젝트 종료 후 6개월 뒤
             자동 삭제됩니다
           </Text>
         </VStack>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Box,
   Heading,
@@ -23,144 +23,153 @@ import {
   ModalFooter,
   ModalCloseButton,
   useDisclosure,
-} from '@chakra-ui/react'
-import { FiCalendar, FiMail, FiCheckSquare, FiCheck, FiEdit2, FiSend } from 'react-icons/fi'
-import Card from './Card'
+} from "@chakra-ui/react";
+import {
+  FiCalendar,
+  FiMail,
+  FiCheckSquare,
+  FiCheck,
+  FiEdit2,
+  FiSend,
+} from "react-icons/fi";
+import Card from "./Card";
 
 function ApprovalCenter({ approvalItems: initialItems }) {
-  const [approvalItems, setApprovalItems] = useState(initialItems)
-  const [selectedItems, setSelectedItems] = useState({})
-  const [isExecuting, setIsExecuting] = useState(false)
-  const [executionProgress, setExecutionProgress] = useState(0)
-  const [completedItems, setCompletedItems] = useState({})
-  const [editingItem, setEditingItem] = useState(null)
-  const { isOpen, onOpen, onClose } = useDisclosure()
-  const toast = useToast()
+  const [approvalItems, setApprovalItems] = useState(initialItems);
+  const [selectedItems, setSelectedItems] = useState({});
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionProgress, setExecutionProgress] = useState(0);
+  const [completedItems, setCompletedItems] = useState({});
+  const [editingItem, setEditingItem] = useState(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
 
   const handleCheckboxChange = (id) => {
     setSelectedItems((prev) => ({
       ...prev,
       [id]: !prev[id],
-    }))
-  }
+    }));
+  };
 
   // EDIT 버튼 클릭
   const handleEditClick = (item) => {
-    setEditingItem({ ...item })
-    onOpen()
-  }
+    setEditingItem({ ...item });
+    onOpen();
+  };
 
   // 편집 저장
   const handleSaveEdit = () => {
     setApprovalItems((prev) =>
       prev.map((item) => (item.id === editingItem.id ? editingItem : item))
-    )
+    );
     toast({
-      title: '수정 완료',
-      description: '항목이 성공적으로 수정되었습니다.',
-      status: 'success',
+      title: "수정 완료",
+      description: "항목이 성공적으로 수정되었습니다.",
+      status: "success",
       duration: 2000,
-    })
-    onClose()
-  }
+    });
+    onClose();
+  };
 
   // 자동보고 실행
   const handleAutoReport = () => {
     toast({
-      title: '자동 보고 발송 중...',
-      description: '회의록과 심층 분석 내용을 상사에게 보고하고 있습니다.',
-      status: 'info',
+      title: "자동 보고 발송 중...",
+      description: "회의록과 심층 분석 내용을 BOSS에게 보고하고 있습니다.",
+      status: "info",
       duration: 2000,
-    })
+    });
 
     setTimeout(() => {
       toast({
-        title: '자동 보고 완료! 📧',
-        description: '상사에게 회의 보고 메일이 성공적으로 발송되었습니다.',
-        status: 'success',
+        title: "자동 보고 완료! 📧",
+        description: "BOSS에게 회의 보고 메일이 성공적으로 발송되었습니다.",
+        status: "success",
         duration: 4000,
         isClosable: true,
-      })
-    }, 2000)
-  }
+      });
+    }, 2000);
+  };
 
   const handleApprove = async () => {
-    const selectedCount = Object.values(selectedItems).filter(Boolean).length
+    const selectedCount = Object.values(selectedItems).filter(Boolean).length;
 
     if (selectedCount === 0) {
       toast({
-        title: '항목을 선택해주세요',
-        description: '실행할 자동화 항목을 체크해주세요',
-        status: 'warning',
+        title: "항목을 선택해주세요",
+        description: "실행할 자동화 항목을 체크해주세요",
+        status: "warning",
         duration: 2000,
-      })
-      return
+      });
+      return;
     }
 
-    setIsExecuting(true)
-    setExecutionProgress(0)
+    setIsExecuting(true);
+    setExecutionProgress(0);
 
     // 시뮬레이션: 각 항목을 순차적으로 실행
-    const selectedIds = Object.keys(selectedItems).filter((id) => selectedItems[id])
-    const totalSteps = selectedIds.length
+    const selectedIds = Object.keys(selectedItems).filter(
+      (id) => selectedItems[id]
+    );
+    const totalSteps = selectedIds.length;
 
     for (let i = 0; i < totalSteps; i++) {
-      const itemId = selectedIds[i]
+      const itemId = selectedIds[i];
 
       // 진행률 업데이트
-      setExecutionProgress(((i + 1) / totalSteps) * 100)
+      setExecutionProgress(((i + 1) / totalSteps) * 100);
 
       // 완료 표시
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      setCompletedItems((prev) => ({ ...prev, [itemId]: true }))
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setCompletedItems((prev) => ({ ...prev, [itemId]: true }));
     }
 
     // 완료 토스트
     toast({
-      title: '자동화 실행 완료! 🎉',
+      title: "자동화 실행 완료! 🎉",
       description: `${selectedCount}개 작업이 성공적으로 완료되었습니다`,
-      status: 'success',
+      status: "success",
       duration: 4000,
       isClosable: true,
-    })
+    });
 
-    setIsExecuting(false)
-  }
+    setIsExecuting(false);
+  };
 
   const getIcon = (type) => {
     switch (type) {
-      case 'calendar':
-        return FiCalendar
-      case 'email':
-        return FiMail
-      case 'todo':
-        return FiCheckSquare
-      case 'report':
-        return FiSend
+      case "calendar":
+        return FiCalendar;
+      case "email":
+        return FiMail;
+      case "todo":
+        return FiCheckSquare;
+      case "report":
+        return FiSend;
       default:
-        return FiCheck
+        return FiCheck;
     }
-  }
+  };
 
   const getColorScheme = (type) => {
     switch (type) {
-      case 'calendar':
-        return 'blue'
-      case 'email':
-        return 'green'
-      case 'todo':
-        return 'orange'
-      case 'report':
-        return 'purple'
+      case "calendar":
+        return "blue";
+      case "email":
+        return "green";
+      case "todo":
+        return "orange";
+      case "report":
+        return "purple";
       default:
-        return 'purple'
+        return "purple";
     }
-  }
+  };
 
-  const selectedCount = Object.values(selectedItems).filter(Boolean).length
+  const selectedCount = Object.values(selectedItems).filter(Boolean).length;
   const totalEstimatedTime = approvalItems
     .filter((item) => selectedItems[item.id])
-    .reduce((acc, item) => acc + parseInt(item.estimatedTime), 0)
+    .reduce((acc, item) => acc + parseInt(item.estimatedTime), 0);
 
   return (
     <>
@@ -241,19 +250,19 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                 p={4}
                 bg={
                   completedItems[item.id]
-                    ? 'green.50'
+                    ? "green.50"
                     : selectedItems[item.id]
-                    ? 'purple.50'
-                    : 'gray.50'
+                    ? "purple.50"
+                    : "gray.50"
                 }
                 borderRadius="12px"
                 borderLeft="4px solid"
                 borderColor={
                   completedItems[item.id]
-                    ? 'green.500'
+                    ? "green.500"
                     : selectedItems[item.id]
-                    ? 'purple.500'
-                    : 'gray.300'
+                    ? "purple.500"
+                    : "gray.300"
                 }
                 transition="all 0.3s"
               >
@@ -266,27 +275,36 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                       colorScheme={getColorScheme(item.type)}
                       size="lg"
                     />
-                    <Icon as={getIcon(item.type)} boxSize={5} color={`${getColorScheme(item.type)}.500`} />
+                    <Icon
+                      as={getIcon(item.type)}
+                      boxSize={5}
+                      color={`${getColorScheme(item.type)}.500`}
+                    />
                     <Text fontWeight="bold">{item.title}</Text>
                   </HStack>
 
                   <HStack>
-                    {!completedItems[item.id] && !isExecuting && item.type !== 'report' && (
-                      <IconButton
-                        icon={<FiEdit2 />}
-                        size="sm"
-                        variant="ghost"
-                        colorScheme="blue"
-                        onClick={() => handleEditClick(item)}
-                        aria-label="편집"
-                      />
-                    )}
+                    {!completedItems[item.id] &&
+                      !isExecuting &&
+                      item.type !== "report" && (
+                        <IconButton
+                          icon={<FiEdit2 />}
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="blue"
+                          onClick={() => handleEditClick(item)}
+                          aria-label="편집"
+                        />
+                      )}
                     {completedItems[item.id] ? (
                       <Badge colorScheme="green" fontSize="sm">
                         ✓ 완료
                       </Badge>
                     ) : (
-                      <Badge colorScheme={getColorScheme(item.type)} fontSize="sm">
+                      <Badge
+                        colorScheme={getColorScheme(item.type)}
+                        fontSize="sm"
+                      >
                         {item.estimatedTime}
                       </Badge>
                     )}
@@ -300,7 +318,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                 {/* 상세 정보 */}
                 {item.details && (
                   <Box ml={8} p={3} bg="white" borderRadius="8px" fontSize="sm">
-                    {item.type === 'calendar' && (
+                    {item.type === "calendar" && (
                       <VStack align="stretch" spacing={1}>
                         <HStack>
                           <Text fontWeight="bold">제목:</Text>
@@ -308,16 +326,18 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                         </HStack>
                         <HStack>
                           <Text fontWeight="bold">날짜:</Text>
-                          <Text>{item.details.date} {item.details.time}</Text>
+                          <Text>
+                            {item.details.date} {item.details.time}
+                          </Text>
                         </HStack>
                         <HStack>
                           <Text fontWeight="bold">참석자:</Text>
-                          <Text>{item.details.attendees.join(', ')}</Text>
+                          <Text>{item.details.attendees.join(", ")}</Text>
                         </HStack>
                       </VStack>
                     )}
 
-                    {item.type === 'email' && (
+                    {item.type === "email" && (
                       <VStack align="stretch" spacing={1}>
                         <HStack>
                           <Text fontWeight="bold">수신:</Text>
@@ -330,31 +350,45 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                       </VStack>
                     )}
 
-                    {item.type === 'todo' && (
+                    {item.type === "todo" && (
                       <VStack align="stretch" spacing={2}>
                         <HStack>
                           <Text fontWeight="bold">생성 개수:</Text>
                           <Text>{item.details.count}개</Text>
                         </HStack>
-                        {item.details.todoItems && item.details.todoItems.length > 0 && (
-                          <Box>
-                            <Text fontWeight="bold" fontSize="xs" mb={1} color="gray.700">TO-DO LIST:</Text>
-                            <VStack align="stretch" spacing={1} pl={2}>
-                              {item.details.todoItems.map((todo, idx) => (
-                                <HStack key={idx} fontSize="xs" spacing={2}>
-                                  <Badge colorScheme="orange" fontSize="xs">{idx + 1}</Badge>
-                                  <Text flex="1">{todo.task}</Text>
-                                  <Text color="gray.600">({todo.assignee})</Text>
-                                  <Text color="gray.500" fontSize="xs">{todo.deadline}</Text>
-                                </HStack>
-                              ))}
-                            </VStack>
-                          </Box>
-                        )}
+                        {item.details.todoItems &&
+                          item.details.todoItems.length > 0 && (
+                            <Box>
+                              <Text
+                                fontWeight="bold"
+                                fontSize="xs"
+                                mb={1}
+                                color="gray.700"
+                              >
+                                TO-DO LIST:
+                              </Text>
+                              <VStack align="stretch" spacing={1} pl={2}>
+                                {item.details.todoItems.map((todo, idx) => (
+                                  <HStack key={idx} fontSize="xs" spacing={2}>
+                                    <Badge colorScheme="orange" fontSize="xs">
+                                      {idx + 1}
+                                    </Badge>
+                                    <Text flex="1">{todo.task}</Text>
+                                    <Text color="gray.600">
+                                      ({todo.assignee})
+                                    </Text>
+                                    <Text color="gray.500" fontSize="xs">
+                                      {todo.deadline}
+                                    </Text>
+                                  </HStack>
+                                ))}
+                              </VStack>
+                            </Box>
+                          )}
                       </VStack>
                     )}
 
-                    {item.type === 'report' && (
+                    {item.type === "report" && (
                       <VStack align="stretch" spacing={1}>
                         <HStack>
                           <Text fontWeight="bold">수신:</Text>
@@ -362,7 +396,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                         </HStack>
                         <HStack>
                           <Text fontWeight="bold">포함 내용:</Text>
-                          <Text>{item.details.contents.join(', ')}</Text>
+                          <Text>{item.details.contents.join(", ")}</Text>
                         </HStack>
                       </VStack>
                     )}
@@ -381,8 +415,8 @@ function ApprovalCenter({ approvalItems: initialItems }) {
               isDisabled={selectedCount === 0}
               bgGradient="linear(to-r, primary.500, secondary.500)"
               _hover={{
-                bgGradient: 'linear(to-r, primary.600, secondary.600)',
-                transform: 'scale(1.02)',
+                bgGradient: "linear(to-r, primary.600, secondary.600)",
+                transform: "scale(1.02)",
               }}
               transition="all 0.2s"
             >
@@ -402,7 +436,9 @@ function ApprovalCenter({ approvalItems: initialItems }) {
             {editingItem && (
               <VStack spacing={4} align="stretch">
                 <Box>
-                  <Text fontWeight="bold" mb={2}>제목</Text>
+                  <Text fontWeight="bold" mb={2}>
+                    제목
+                  </Text>
                   <Input
                     value={editingItem.title}
                     onChange={(e) =>
@@ -412,53 +448,73 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                 </Box>
 
                 <Box>
-                  <Text fontWeight="bold" mb={2}>설명</Text>
+                  <Text fontWeight="bold" mb={2}>
+                    설명
+                  </Text>
                   <Textarea
                     value={editingItem.description}
                     onChange={(e) =>
-                      setEditingItem({ ...editingItem, description: e.target.value })
+                      setEditingItem({
+                        ...editingItem,
+                        description: e.target.value,
+                      })
                     }
                     rows={3}
                   />
                 </Box>
 
-                {editingItem.type === 'calendar' && editingItem.details && (
+                {editingItem.type === "calendar" && editingItem.details && (
                   <>
                     <Box>
-                      <Text fontWeight="bold" mb={2}>일정 제목</Text>
+                      <Text fontWeight="bold" mb={2}>
+                        일정 제목
+                      </Text>
                       <Input
                         value={editingItem.details.title}
                         onChange={(e) =>
                           setEditingItem({
                             ...editingItem,
-                            details: { ...editingItem.details, title: e.target.value },
+                            details: {
+                              ...editingItem.details,
+                              title: e.target.value,
+                            },
                           })
                         }
                       />
                     </Box>
                     <HStack>
                       <Box flex="1">
-                        <Text fontWeight="bold" mb={2}>날짜</Text>
+                        <Text fontWeight="bold" mb={2}>
+                          날짜
+                        </Text>
                         <Input
                           type="date"
                           value={editingItem.details.date}
                           onChange={(e) =>
                             setEditingItem({
                               ...editingItem,
-                              details: { ...editingItem.details, date: e.target.value },
+                              details: {
+                                ...editingItem.details,
+                                date: e.target.value,
+                              },
                             })
                           }
                         />
                       </Box>
                       <Box flex="1">
-                        <Text fontWeight="bold" mb={2}>시간</Text>
+                        <Text fontWeight="bold" mb={2}>
+                          시간
+                        </Text>
                         <Input
                           type="time"
                           value={editingItem.details.time}
                           onChange={(e) =>
                             setEditingItem({
                               ...editingItem,
-                              details: { ...editingItem.details, time: e.target.value },
+                              details: {
+                                ...editingItem.details,
+                                time: e.target.value,
+                              },
                             })
                           }
                         />
@@ -467,16 +523,21 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                   </>
                 )}
 
-                {editingItem.type === 'email' && editingItem.details && (
+                {editingItem.type === "email" && editingItem.details && (
                   <>
                     <Box>
-                      <Text fontWeight="bold" mb={2}>메일 제목</Text>
+                      <Text fontWeight="bold" mb={2}>
+                        메일 제목
+                      </Text>
                       <Input
                         value={editingItem.details.subject}
                         onChange={(e) =>
                           setEditingItem({
                             ...editingItem,
-                            details: { ...editingItem.details, subject: e.target.value },
+                            details: {
+                              ...editingItem.details,
+                              subject: e.target.value,
+                            },
                           })
                         }
                       />
@@ -497,7 +558,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
         </ModalContent>
       </Modal>
     </>
-  )
+  );
 }
 
-export default ApprovalCenter
+export default ApprovalCenter;

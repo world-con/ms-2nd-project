@@ -55,27 +55,26 @@ ${meeting.decisions.map((d, i) => `${i + 1}. ${d}`).join("\n")}
 
 🎯 TO-DO LIST (${todoList.length}개)
 ${todoList
-  .map(
-    (item, i) => `
+        .map(
+          (item, i) => `
 ${i + 1}. ${item.task}
    담당자: ${item.assignee}
    마감일: ${item.deadline}
    상태: ${item.status === "completed" ? "완료" : "진행 중"}
 `
-  )
-  .join("\n")}
+        )
+        .join("\n")}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ 미해결 이슈 (${meeting.openIssues?.length || 0}개)
-${
-  meeting.openIssues
-    ?.map(
-      (issue, i) =>
-        `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`
-    )
-    .join("\n") || "없음"
-}
+${meeting.openIssues
+        ?.map(
+          (issue, i) =>
+            `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`
+        )
+        .join("\n") || "없음"
+      }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -157,8 +156,8 @@ ${meeting.transcript}
   // TO-DO LIST 메일 발송
   const handleSendTodoEmail = () => {
     toast({
-      title: "TO-DO LIST 메일 발송",
-      description: "TO-DO LIST가 담당자들에게 메일로 발송되었습니다.",
+      title: "TO-DO LIST 등록",
+      description: "TO-DO LIST가 Outlook에 등록되었습니다.",
       status: "success",
       duration: 3000,
       isClosable: true,

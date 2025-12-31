@@ -208,8 +208,8 @@ export const mockMeetingResult = {
     {
       id: 'approve-3',
       type: 'todo',
-      title: 'TO-DO LIST 메일 발송',
-      description: '담당자별 TO-DO LIST를 메일로 자동 발송합니다',
+      title: 'TO-DO LIST 등록',
+      description: '담당자별 TO-DO LIST를 Outlook에 자동 등록합니다',
       details: {
         count: 5,
         assignees: ['박개발', '최디자인', '정마케팅'],

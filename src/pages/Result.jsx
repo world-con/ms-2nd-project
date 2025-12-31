@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -13,200 +13,151 @@ import {
   Badge,
   Divider,
   Button,
-  SimpleGrid,
+  Spinner,
   useToast,
 } from "@chakra-ui/react";
-import {
-  FiFileText,
-  FiTrendingUp,
-  FiCheckCircle,
-  FiDownload,
-} from "react-icons/fi";
+import { FiFileText, FiTrendingUp, FiCheckCircle } from "react-icons/fi";
 import Card from "../components/Card";
 import ApprovalCenter from "../components/ApprovalCenter";
 import { mockMeetingResult } from "../data/mockData";
+import axios from "axios";
+import { useAppContext } from "../context/AppContext";
 
 function Result() {
+  // 1. 필수 상태 변수들
   const [tabIndex, setTabIndex] = useState(0);
-  const meeting = mockMeetingResult;
+  const { transcript, setAiSummary, aiSummary } = useAppContext();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [realSummary, setRealSummary] = useState("");
+  const [resultData, setResultData] = useState(mockMeetingResult); // 기본값 설정
   const toast = useToast();
 
-  // 회의록 다운로드 함수
-  const handleDownloadMinutes = () => {
-    const minutesContent = `
-[이음 AI 회의록]
-
-회의명: ${meeting.title}
-일시: ${meeting.date} ${meeting.startTime} - ${meeting.endTime}
-참석자: ${meeting.participants.join(", ")}
-소요시간: ${meeting.duration}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 회의 요약
-${meeting.summary}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✅ 주요 결정사항 (${meeting.decisions.length}개)
-${meeting.decisions.map((d, i) => `${i + 1}. ${d}`).join("\n")}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 TO-DO LIST (${todoList.length}개)
-${todoList
-        .map(
-          (item, i) => `
-${i + 1}. ${item.task}
-   담당자: ${item.assignee}
-   마감일: ${item.deadline}
-   상태: ${item.status === "completed" ? "완료" : "진행 중"}
-`
-        )
-        .join("\n")}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ 미해결 이슈 (${meeting.openIssues?.length || 0}개)
-${meeting.openIssues
-        ?.map(
-          (issue, i) =>
-            `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`
-        )
-        .join("\n") || "없음"
+  // 2. 페이지 진입 시 AI 분석 요청
+  useEffect(() => {
+    const processMeeting = async () => {
+      // 녹음 내용 없으면 로딩 끄고 종료
+      if (!transcript) {
+        setIsLoading(false);
+        return;
       }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      try {
+        const response = await axios.post("/api/analyze-meeting", {
+          summary_text: transcript,
+        });
 
-💬 전체 회의록
-${meeting.transcript}
+        if (response.data.status === "success") {
+          const aiData = response.data.data;
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // [핵심] ApprovalCenter가 터지지 않게 데이터 강제 주입
+          const safeActionItems = Array.isArray(aiData.actionItems)
+            ? aiData.actionItems
+            : [];
 
-생성일시: ${new Date().toLocaleString("ko-KR")}
-생성자: 이음 AI 회의 서비스
-    `;
+          const safeApprovalItems = safeActionItems.map((item, idx) => ({
+            id: `approval-${idx}`,
+            type: "todo", // 무조건 todo로 통일 (아이콘 에러 방지)
+            title: item.task || "할 일 내용 없음",
+            description: `담당: ${item.assignee || "미정"}`,
+            estimatedTime: "5분",
+            // ★ 여기가 제일 중요: ApprovalCenter가 요구하는 모든 필드를 다 넣어줌
+            details: {
+              count: 1,
+              assignees: [item.assignee || "담당자 미정"], // 배열 필수
+              title: item.task,
+              date: "추후 협의",
+              time: "",
+              attendees: [], // 배열 필수
+              recipients: [], // 배열 필수
+              subject: item.task,
+            },
+          }));
 
-    const blob = new Blob([minutesContent], {
-      type: "text/plain;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `이음_회의록_${meeting.date}_${meeting.title}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+          // 데이터 병합
+          const mergedData = {
+            ...mockMeetingResult, // 목데이터 베이스
+            ...aiData, // AI 데이터 덮어쓰기
+            title: "AI 분석 완료된 회의",
+            date: new Date().toLocaleDateString(),
 
-    toast({
-      title: "회의록 다운로드 완료",
-      description: "RAG 양식으로 회의록이 다운로드되었습니다.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
+            // 배열 안전장치
+            decisions: Array.isArray(aiData.decisions) ? aiData.decisions : [],
+            actionItems: safeActionItems,
+            openIssues: Array.isArray(aiData.openIssues)
+              ? aiData.openIssues
+              : [],
+            approvalItems: safeApprovalItems, // 위에서 만든 안전한 데이터
+
+            insights: {
+              meetingType: aiData.insights?.meetingType || "일반 회의",
+              sentiment: aiData.insights?.sentiment || "중립",
+              keyTopics: Array.isArray(aiData.insights?.keyTopics)
+                ? aiData.insights.keyTopics
+                : [],
+              risks: Array.isArray(aiData.insights?.risks)
+                ? aiData.insights.risks
+                : [],
+              recommendations: Array.isArray(aiData.insights?.recommendations)
+                ? aiData.insights.recommendations
+                : [],
+            },
+          };
+
+          setResultData(mergedData);
+          setRealSummary(aiData.summary);
+          setAiSummary(aiData.summary);
+
+          toast({ title: "분석 완료", status: "success", duration: 3000 });
+        }
+      } catch (error) {
+        console.error("분석 에러:", error);
+        toast({
+          title: "분석 실패",
+          description: "서버 연결 확인 필요",
+          status: "error",
+        });
+      } finally {
+        setIsLoading(false); // 무조건 로딩 끔
+      }
+    };
+
+    processMeeting();
+  }, [transcript]);
+
+  // 3. 메일 발송 함수
+  const handleSendEmail = async () => {
+    if (!realSummary) {
+      toast({ title: "내용 없음", status: "warning" });
+      return;
+    }
+    try {
+      // ApprovalCenter 내부에서 로딩을 관리하므로 여기선 상태 변경 X
+      const response = await axios.post("/api/execute-action", {
+        summary_text: realSummary,
+      });
+      if (response.data.status === "success") {
+        console.log("메일 발송 성공");
+      }
+    } catch (error) {
+      console.error(error);
+      throw error; // 에러를 던져야 자식 컴포넌트가 실패 처리를 함
+    }
   };
 
-  // TO-DO LIST 편집 저장
-  const handleSaveTodoList = () => {
-    setTodoList([...editedTodoList]);
-    setIsEditingTodo(false);
-    toast({
-      title: "TO-DO LIST 저장 완료",
-      description: "변경사항이 저장되었습니다.",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
-  };
-
-  // TO-DO LIST 편집 취소
-  const handleCancelTodoEdit = () => {
-    setEditedTodoList([...todoList]);
-    setIsEditingTodo(false);
-  };
-
-  // TO-DO 항목 수정
-  const handleTodoChange = (index, field, value) => {
-    const updated = [...editedTodoList];
-    updated[index] = { ...updated[index], [field]: value };
-    setEditedTodoList(updated);
-  };
-
-  // TO-DO 항목 추가
-  const handleAddTodo = () => {
-    setEditedTodoList([
-      ...editedTodoList,
-      {
-        task: "새 작업",
-        assignee: "담당자",
-        deadline: "2025-12-31",
-        status: "pending",
-      },
-    ]);
-  };
-
-  // TO-DO 항목 삭제
-  const handleDeleteTodo = (index) => {
-    const updated = editedTodoList.filter((_, i) => i !== index);
-    setEditedTodoList(updated);
-  };
-
-  // TO-DO LIST 메일 발송
-  const handleSendTodoEmail = () => {
-    toast({
-      title: "TO-DO LIST 등록",
-      description: "TO-DO LIST가 Outlook에 등록되었습니다.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-  };
-
+  // 4. 화면 렌더링
   return (
     <Box>
       {/* 헤더 */}
       <Card mb={6} bg="linear-gradient(135deg, #4811BF 0%, #8C5CF2 100%)">
         <VStack align="stretch" spacing={3}>
-          <HStack justify="space-between">
-            <Heading size="lg" color="white">
-              {meeting.title}
-            </Heading>
-            <Button
-              leftIcon={<FiDownload />}
-              colorScheme="whiteAlpha"
-              variant="solid"
-              onClick={handleDownloadMinutes}
-              size="lg"
-              px={12}
-              py={8}
-              fontSize="lg"
-              fontWeight="bold"
-              height="60px"
-              _hover={{ transform: "scale(0.9)", boxShadow: "lg" }}
-              transition="all 0.2s"
-            >
-              RAG Custom 회의록
-            </Button>
-          </HStack>
+          <Heading size="lg" color="white">
+            {resultData.title}
+          </Heading>
           <HStack fontSize="sm" color="whiteAlpha.900">
-            <Text>{meeting.date}</Text>
+            <Text>{resultData.date}</Text>
             <Text>·</Text>
-            <Text>
-              {meeting.startTime} - {meeting.endTime}
-            </Text>
-            <Text>·</Text>
-            <Text>{meeting.duration}</Text>
-            <Text>·</Text>
-            <Text>{meeting.participants.length}명 참석</Text>
-          </HStack>
-          <HStack>
-            {meeting.participants.map((name, i) => (
-              <Badge key={i} colorScheme="purple" fontSize="xs">
-                {name}
-              </Badge>
-            ))}
+            <Text>AI 분석 리포트</Text>
           </HStack>
         </VStack>
       </Card>
@@ -238,34 +189,30 @@ ${meeting.transcript}
           {/* Tab 1: 회의록 */}
           <TabPanel p={0}>
             <VStack align="stretch" spacing={6}>
-              {/* 요약 */}
               <Card>
                 <Heading size="md" mb={3}>
                   📝 회의 요약
                 </Heading>
-                <Text color="gray.700" lineHeight="1.8">
-                  {meeting.summary}
-                </Text>
+                {isLoading ? (
+                  <VStack py={8}>
+                    <Spinner size="xl" color="purple.500" />
+                    <Text mt={4}>AI 분석 중...</Text>
+                  </VStack>
+                ) : (
+                  <Text color="gray.700" lineHeight="1.8" whiteSpace="pre-line">
+                    {realSummary || resultData.summary}
+                  </Text>
+                )}
               </Card>
 
               {/* 결정사항 */}
               <Card>
-                <HStack mb={4} justify="space-between">
-                  <Heading size="md">✅ 주요 결정사항</Heading>
-                  <Badge colorScheme="blue" fontSize="md">
-                    {meeting.decisions.length}개
-                  </Badge>
-                </HStack>
+                <Heading size="md" mb={3}>
+                  ✅ 주요 결정사항
+                </Heading>
                 <VStack align="stretch" spacing={2}>
-                  {meeting.decisions.map((decision, i) => (
-                    <HStack
-                      key={i}
-                      p={3}
-                      bg="blue.50"
-                      borderRadius="8px"
-                      borderLeft="4px solid"
-                      borderColor="blue.500"
-                    >
+                  {resultData.decisions.map((decision, i) => (
+                    <HStack key={i} p={3} bg="blue.50" borderRadius="8px">
                       <Badge colorScheme="blue">{i + 1}</Badge>
                       <Text>{decision}</Text>
                     </HStack>
@@ -273,52 +220,11 @@ ${meeting.transcript}
                 </VStack>
               </Card>
 
-              {/* 미해결 이슈 */}
-              {meeting.openIssues && meeting.openIssues.length > 0 && (
-                <Card>
-                  <HStack mb={4} justify="space-between">
-                    <Heading size="md">⚠️ 미해결 이슈</Heading>
-                    <Badge colorScheme="red" fontSize="md">
-                      {meeting.openIssues.length}개
-                    </Badge>
-                  </HStack>
-                  <VStack align="stretch" spacing={2}>
-                    {meeting.openIssues.map((issue, i) => (
-                      <HStack
-                        key={i}
-                        p={3}
-                        bg="red.50"
-                        borderRadius="8px"
-                        borderLeft="4px solid"
-                        borderColor="red.500"
-                      >
-                        <Text flex="1">{issue.title}</Text>
-                        <Text fontSize="xs" color="gray.600">
-                          마지막 언급: {issue.lastMentioned}
-                        </Text>
-                      </HStack>
-                    ))}
-                  </VStack>
-                </Card>
-              )}
-
-              {/* 전체 회의록 */}
+              {/* 전체 녹음 */}
               <Card>
-                <Heading size="md" mb={3}>
-                  💬 전체 회의록
-                </Heading>
-                <Divider mb={3} />
-                <Box
-                  bg="gray.50"
-                  p={4}
-                  borderRadius="8px"
-                  fontSize="sm"
-                  whiteSpace="pre-line"
-                  lineHeight="1.8"
-                  maxH="400px"
-                  overflow="auto"
-                >
-                  {meeting.transcript}
+                <Heading size="md">💬 전체 녹음</Heading>
+                <Box bg="gray.50" p={4} borderRadius="8px" fontSize="sm">
+                  {transcript || resultData.transcript}
                 </Box>
               </Card>
             </VStack>
@@ -327,94 +233,22 @@ ${meeting.transcript}
           {/* Tab 2: 심층 분석 */}
           <TabPanel p={0}>
             <VStack align="stretch" spacing={6}>
-              {/* 회의 유형 및 감정 분석 */}
               <Card>
-                <Heading size="md" mb={4}>
-                  📊 회의 분석
-                </Heading>
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                  <Box p={4} bg="purple.50" borderRadius="8px">
-                    <Text fontSize="sm" color="gray.600" mb={1}>
-                      회의 유형
-                    </Text>
-                    <Text fontSize="xl" fontWeight="bold" color="primary.500">
-                      {meeting.insights.meetingType}
-                    </Text>
-                  </Box>
-                  <Box p={4} bg="green.50" borderRadius="8px">
-                    <Text fontSize="sm" color="gray.600" mb={1}>
-                      전체 분위기
-                    </Text>
-                    <Text fontSize="xl" fontWeight="bold" color="success.500">
-                      긍정적 ✅
-                    </Text>
-                  </Box>
-                </SimpleGrid>
+                <Heading size="md">📊 회의 분석</Heading>
+                <Text>유형: {resultData.insights.meetingType}</Text>
+                <Text>분위기: {resultData.insights.sentiment}</Text>
               </Card>
-
-              {/* 주요 토픽 */}
-              <Card>
-                <Heading size="md" mb={3}>
-                  🔑 주요 토픽
-                </Heading>
-                <HStack spacing={2} flexWrap="wrap">
-                  {meeting.insights.keyTopics.map((topic, i) => (
-                    <Badge key={i} colorScheme="purple" fontSize="md" p={2}>
-                      {topic}
-                    </Badge>
-                  ))}
-                </HStack>
-              </Card>
-
               {/* 리스크 분석 */}
               <Card>
-                <Heading size="md" mb={4}>
+                <Heading size="md" mb={3}>
                   ⚠️ 리스크 분석
                 </Heading>
-                <VStack align="stretch" spacing={3}>
-                  {meeting.insights.risks.map((risk, i) => (
-                    <Box
-                      key={i}
-                      p={4}
-                      bg={risk.level === "high" ? "red.50" : "yellow.50"}
-                      borderRadius="8px"
-                      borderLeft="4px solid"
-                      borderColor={
-                        risk.level === "high" ? "red.500" : "yellow.500"
-                      }
-                    >
-                      <HStack justify="space-between" mb={2}>
-                        <Badge
-                          colorScheme={risk.level === "high" ? "red" : "yellow"}
-                        >
-                          {risk.level === "high" ? "높음" : "중간"}
-                        </Badge>
-                      </HStack>
+                <VStack align="stretch">
+                  {resultData.insights.risks.map((risk, i) => (
+                    <Box key={i} p={3} bg="red.50" borderRadius="8px">
+                      <Text fontWeight="bold">{risk.level.toUpperCase()}</Text>
                       <Text>{risk.description}</Text>
                     </Box>
-                  ))}
-                </VStack>
-              </Card>
-
-              {/* AI 추천 사항 */}
-              <Card>
-                <Heading size="md" mb={4}>
-                  💡 AI 추천 사항
-                </Heading>
-                <VStack align="stretch" spacing={3}>
-                  {meeting.insights.recommendations.map((rec, i) => (
-                    <HStack
-                      key={i}
-                      p={3}
-                      bg="blue.50"
-                      borderRadius="8px"
-                      align="flex-start"
-                    >
-                      <Badge colorScheme="blue" mt={1}>
-                        {i + 1}
-                      </Badge>
-                      <Text flex="1">{rec}</Text>
-                    </HStack>
                   ))}
                 </VStack>
               </Card>
@@ -424,14 +258,14 @@ ${meeting.transcript}
           {/* Tab 3: 자동화 승인 */}
           <TabPanel p={0}>
             <VStack align="stretch" spacing={6}>
-              {/* 차별화 포인트 강조 */}
-              <Card bg="gradient.to-r, primary.50, secondary.50">
+              {/* ▼▼▼ [디자인 복구] 팀원이 만든 차별화 포인트 강조 카드 ▼▼▼ */}
+              <Card bg="linear-gradient(to right, #f3e8ff, #e9d5ff)">
                 <HStack spacing={4} align="start">
                   <Box p={3} bg="white" borderRadius="12px" boxShadow="sm">
                     <Text fontSize="3xl">🚀</Text>
                   </Box>
                   <Box flex="1">
-                    <Heading size="md" mb={2} color="primary.500">
+                    <Heading size="md" mb={2} color="purple.600">
                       이음의 차별화 포인트!
                     </Heading>
                     <Text color="gray.700" fontSize="sm" lineHeight="1.8">
@@ -450,8 +284,19 @@ ${meeting.transcript}
                 </HStack>
               </Card>
 
-              {/* 승인 센터 */}
-              <ApprovalCenter approvalItems={meeting.approvalItems} />
+              {/* 
+                  ▼▼▼ [기능 연결] ▼▼▼ 
+                  1. approvalItems: 백엔드 데이터 연결
+                  2. onSendEmail: 우리가 만든 메일 발송 함수 연결
+              */}
+              <ApprovalCenter
+                approvalItems={resultData.approvalItems}
+                onSendEmail={handleSendEmail}
+              />
+
+              {/* 🚨 아까 제가 추가했던 별도의 '승인 버튼' 박스는 제거했습니다. 
+                  (ApprovalCenter 안에 이미 예쁜 버튼이 있으니까요!) */}
+              <Box pt={6} pb={10}></Box>
             </VStack>
           </TabPanel>
         </TabPanels>

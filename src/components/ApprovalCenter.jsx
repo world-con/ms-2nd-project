@@ -164,11 +164,6 @@ function ApprovalCenter({ approvalItems: initialItems }) {
 
             console.log(`[Success] Email sent to team members`)
           }
-          //   if (onSendEmail) {
-          //     await onSendEmail() 
-          //   }
-          //     console.log(`[Success] Email sent`)
-          // }
 
           // [CASE C] Outlook Todo 생성 로직 수정
           else if (item.type === 'todo') {

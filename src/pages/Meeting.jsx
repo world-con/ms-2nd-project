@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Box,
   Heading,
@@ -7,15 +7,19 @@ import {
   VStack,
   HStack,
   Circle,
-  Textarea,
-  Input,
   Flex,
+  Input,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useNavigate } from "react-router-dom";
 import { FiMic, FiSquare, FiPause, FiPlay, FiSend } from "react-icons/fi";
 import Card from "../components/Card";
 import { useAppContext } from "../context/AppContext";
+import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
+
+// ▼▼▼ Azure 키 설정 (나중엔 .env로 빼세요) ▼▼▼
+const SPEECH_KEY = import.meta.env.VITE_SPEECH_KEY;
+const SPEECH_REGION = import.meta.env.VITE_SPEECH_REGION;
 
 const pulse = keyframes`
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -30,10 +34,16 @@ function Meeting() {
     recordingTime,
     setRecordingTime,
     stopRecording,
+    setTranscript, // Context에 저장하는 함수
   } = useAppContext();
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [sttTranscript, setSttTranscript] = useState(""); // STT 전사 내용
+
+  // ▼▼▼ [Real Tech] 실제 STT 데이터 저장용 ▼▼▼
+  const [localTranscript, setLocalTranscript] = useState("");
+  const recognizerRef = useRef(null); // SDK 객체 저장용
+
   const [aiMessages, setAiMessages] = useState([
     {
       type: "ai",
@@ -43,29 +53,65 @@ function Meeting() {
   ]);
   const [aiInput, setAiInput] = useState("");
 
-  // STT 시뮬레이션 (더미 데이터)
+  // --- [1] 페이지 로드 시 Azure 녹음기 시동 ---
   useEffect(() => {
-    if (isRecording && !isPaused) {
-      const timer = setTimeout(() => {
-        const dummyTexts = [
-          "[김프로] 오늘 회의 시작하겠습니다. 먼저 지난 회의 내용을 간단히 리뷰하겠습니다.",
-          "[박팀장] 네, RAG 구현 부분은 진행 중입니다. 이번 주 내로 완료 예정입니다.",
-          "[이매니저] 프론트엔드는 80% 완료되었고, 승인센터 기능을 추가 중입니다.",
-          "[김프로] 좋습니다. 다음 주 데모 준비는 어떻게 되고 있나요?",
-          "[박팀장] 데모 시나리오는 작성 완료했고, 실제 시연 준비 중입니다.",
-        ];
+    //  [핵심] 이미 녹음기가 켜져 있으면 또 켜지 말고 돌아가! (중복 방지)
+    if (recognizerRef.current) return;
+    if (!isRecording) return; // 녹음 상태가 아니면 시작 안 함 (선택 사항)
 
-        if (recordingTime > 0 && recordingTime % 5 === 0) {
-          const randomIndex = Math.floor(Math.random() * dummyTexts.length);
-          setSttTranscript(
-            (prev) => prev + (prev ? "\n\n" : "") + dummyTexts[randomIndex]
-          );
+    let recognizer;
+
+    try {
+      // 키 확인 안전장치
+      if (!SPEECH_KEY || SPEECH_KEY.includes("your_key_here")) {
+        console.warn("⚠️ Azure Speech Key가 설정되지 않았습니다.");
+        // 여기서 return 하면 시뮬레이션 모드라도 돌릴 수 있게 할지는 선택
+        // return; 
+      }
+
+      const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
+        SPEECH_KEY || "dummy",
+        SPEECH_REGION || "koreacentral"
+      );
+      speechConfig.speechRecognitionLanguage = "ko-KR";
+
+      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+      recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
+
+      // [이벤트 1] 인식된 문장이 완성되었을 때 (Recognized)
+      recognizer.recognized = (s, e) => {
+        if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+          console.log("인식됨:", e.result.text);
+          setLocalTranscript((prev) => prev + (prev ? "\n" : "") + e.result.text);
         }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isRecording, isPaused, recordingTime]);
+      };
 
+      // [이벤트 2] 실시간으로 인식 중일 때 (Recognizing) - 선택 구현
+      // recognizer.recognizing = (s, e) => {
+      //    console.log("인식 중:", e.result.text);
+      // };
+
+      recognizer.startContinuousRecognitionAsync(() => {
+        console.log("🎙️ Azure 녹음 시작됨");
+      });
+
+      recognizerRef.current = recognizer;
+    } catch (error) {
+      console.error("❌ Azure SDK 초기화 오류:", error);
+    }
+
+    // 페이지 나갈 때 정리 (Cleanup)
+    return () => {
+      if (recognizer) {
+        recognizer.stopContinuousRecognitionAsync(() => {
+          recognizer.close(); // 자원 해제
+        });
+      }
+      recognizerRef.current = null; // 초기화
+    };
+  }, [isRecording]); // isRecording이 true일 때 시작
+
+  // --- 타이머 로직 ---
   useEffect(() => {
     let timer;
     if (isRecording && !isPaused) {
@@ -74,9 +120,9 @@ function Meeting() {
       }, 1000);
     }
     return () => {
-      if (timer) clearInterval(timer); // ✅ 조건 추가
+      if (timer) clearInterval(timer);
     };
-  }, [isRecording, isPaused]); // ✅ setRecordingTime 제거
+  }, [isRecording, isPaused, setRecordingTime]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -88,17 +134,43 @@ function Meeting() {
 
   const handlePauseResume = () => {
     setIsPaused(!isPaused);
+    // 실제 SDK도 일시정지 기능을 지원하지만, 여기서는 단순 UI 상태 변경만 처리하고
+    // 텍스트는 계속 받을지, 아니면 stopContinuousRecognitionAsync를 쓸지 선택해야 합니다.
+    // 간단하게는 무시하겠습니다.
   };
 
+  // ▼▼▼ [수정됨] 종료 버튼 클릭 시 로직 ▼▼▼
   const handleStopRecording = () => {
-    stopRecording();
-    setIsProcessing(true);
+    stopRecording(); // Context 상태 변경
+    setIsProcessing(true); // 로딩 화면 보여주기
 
-    // 2초 후 결과 화면으로 이동 (시뮬레이션)
-    setTimeout(() => {
-      setIsProcessing(false);
-      navigate("/result/999");
-    }, 2000);
+    // Azure 녹음기 끄기
+    if (recognizerRef.current) {
+      recognizerRef.current.stopContinuousRecognitionAsync(() => {
+        console.log("🛑 녹음 종료. 저장된 내용:", localTranscript);
+
+        // [중요] 전역 Context에 녹음본 저장
+        setTranscript(localTranscript);
+        localStorage.setItem("lastTranscript", localTranscript);
+
+        // 2초 후 결과 화면으로 이동
+        setTimeout(() => {
+          setIsProcessing(false);
+          navigate("/result");
+        }, 2000);
+      });
+    } else {
+      // 혹시 녹음기가 안 켜졌을 경우 대비
+      console.warn("녹음기가 초기화되지 않았습니다. 로컬 내용을 저장 후 이동합니다.");
+      if (localTranscript) {
+        setTranscript(localTranscript);
+        localStorage.setItem("lastTranscript", localTranscript);
+      }
+      setTimeout(() => {
+        setIsProcessing(false);
+        navigate("/result");
+      }, 2000);
+    }
   };
 
   const handleAiSend = () => {
@@ -115,7 +187,7 @@ function Meeting() {
 
     setAiMessages((prev) => [...prev, newMessage]);
 
-    // AI 응답 시뮬레이션
+    // AI 응답 시뮬레이션 (Home.jsx의 채팅과 동일하게 백엔드 연결 가능)
     setTimeout(() => {
       let aiResponse = "";
       if (aiInput.includes("회의") || aiInput.includes("지난")) {
@@ -227,7 +299,7 @@ function Meeting() {
         {/* STT 실시간 전사 창 */}
         <Card mt={6}>
           <Heading size="sm" mb={3}>
-            📝 실시간 전사 내용 (STT)
+            📝 실시간 전사 내용 (Azure STT)
           </Heading>
           <Box
             bg="gray.50"
@@ -238,13 +310,15 @@ function Meeting() {
             border="1px solid"
             borderColor="gray.200"
           >
-            {sttTranscript ? (
+            {localTranscript ? (
               <Text fontSize="sm" color="gray.700" whiteSpace="pre-wrap">
-                {sttTranscript}
+                {localTranscript}
               </Text>
             ) : (
               <Text fontSize="sm" color="gray.500" fontStyle="italic">
-                회의 내용이 여기에 실시간으로 표시됩니다...
+                아직 대화 내용이 없습니다. 말씀을 시작하세요...
+                <br />
+                (Azure Key가 설정되었는지 확인해주세요)
               </Text>
             )}
           </Box>

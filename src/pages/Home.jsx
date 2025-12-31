@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Box,
   Heading,
@@ -22,16 +23,17 @@ import {
   FiMessageCircle,
 } from "react-icons/fi";
 import Card from "../components/Card";
-import {
-  mockMeetings,
-  mockOpenIssues,
-  mockSuggestedAgenda,
-} from "../data/mockData";
 import { useAppContext } from "../context/AppContext";
 
 function Home() {
   const navigate = useNavigate();
   const { startMeeting } = useAppContext();
+
+  // ▼▼▼ [Real Tech] 실제 DB 데이터 상태 ▼▼▼
+  const [realMeetings, setRealMeetings] = useState([]);
+  const [realIssues, setRealIssues] = useState([]);
+  const [realAgendas, setRealAgendas] = useState([]);
+
   const [chatMessages, setChatMessages] = useState([
     {
       id: 1,
@@ -40,9 +42,33 @@ function Home() {
       time: "10:30",
     },
   ]);
-  const [chatInput, setChatInput] = useState("");  
-  // isLoading 상태 선언
-    const [isLoading, setIsLoading] = useState(false)
+  const [chatInput, setChatInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // --- [1] 대시보드 데이터 로드 (Real RAG Data) ---
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await axios.get("/api/dashboard-data");
+
+        if (response.data.status === "success") {
+          // 1. 회의 목록 저장
+          setRealMeetings(response.data.meetings);
+
+          // 2. 미해결 이슈 저장 (없으면 빈 배열)
+          setRealIssues(response.data.open_issues || []);
+
+          // 3. 추천 안건 저장 (없으면 빈 배열)
+          setRealAgendas(response.data.suggested_agenda || []);
+        }
+      } catch (e) {
+        console.error("대시보드 로딩 실패:", e);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
   const handleStartMeeting = () => {
     const newMeeting = {
       id: Date.now(),
@@ -56,7 +82,8 @@ function Home() {
     startMeeting(newMeeting);
     navigate("/meeting");
   };
-  // 백엔드 API와 통신하는 함수
+
+  // --- [2] AI 비서 채팅 (Real Chat) ---
   const handleSendMessage = async () => {
     if (chatInput.trim() === "") return;
 
@@ -71,22 +98,23 @@ function Home() {
       }),
     };
     setChatMessages([...chatMessages, userMessage]);
+    setChatInput(""); // 입력창 초기화 먼저
 
-    // AI 응답 시뮬레이션
-    // setTimeout(() => {
+    setIsLoading(true);
+
     try {
-    // 2. Python 백엔드(FastAPI)로 전송
-    const response = await fetch("http://localhost:8000/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage.text }),
-    });
+      // Python 백엔드(FastAPI)로 전송
+      const response = await fetch("http://localhost:8000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage.text }),
+      });
 
-    if (!response.ok) throw new Error("서버 응답 에러");
+      if (!response.ok) throw new Error("서버 응답 에러");
 
-    const data = await response.json();
+      const data = await response.json();
 
-    // AI 응답 화면 표시
+      // AI 응답 화면 표시
       const aiResponse = {
         id: Date.now() + 1,
         sender: "ai",
@@ -95,39 +123,29 @@ function Home() {
           hour: "2-digit",
           minute: "2-digit",
         }),
-      }
-      setChatMessages((prev) => [...prev, aiResponse])
+      };
+      setChatMessages((prev) => [...prev, aiResponse]);
     } catch (error) {
       console.error("Chat Error:", error);
       const errorMessage = {
         id: Date.now() + 1,
-        sender: 'ai',
+        sender: "ai",
         text: "죄송합니다. 서버 연결에 실패했습니다. (백엔드가 켜져있나요?)",
-        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-      }
-      setChatMessages((prev) => [...prev, errorMessage])
+        time: new Date().toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setChatMessages((prev) => [...prev, errorMessage]);
     } finally {
-      setIsLoading(false) // 로딩 종료
+      setIsLoading(false);
     }
   };
-
-  // const getAIResponse = (input) => {
-  //   const lowerInput = input.toLowerCase();
-  //   if (lowerInput.includes("회의") || lowerInput.includes("미팅")) {
-  //     return '지난 회의 내역을 확인하실 수 있습니다. 아래 "최근 회의" 목록을 확인해보세요!';
-  //   } else if (lowerInput.includes("이슈") || lowerInput.includes("미해결")) {
-  //     return `현재 ${mockOpenIssues.length}개의 미해결 이슈가 있습니다. 왼쪽 카드를 확인해보세요!`;
-  //   } else if (lowerInput.includes("안녕") || lowerInput.includes("하이")) {
-  //     return "안녕하세요! 오늘도 좋은 하루 보내세요 😊";
-  //   } else {
-  //     return "질문주셔서 감사합니다! 회의, 이슈, 과거 기록 등에 대해 물어보세요.";
-  //   }
-  // };
 
   return (
     <Box>
       <Heading size="xl" mb={6}>
-        안녕하세요, 카리나님 👋
+        안녕하세요, 김프로님 👋
       </Heading>
 
       {/* 회의 시작 버튼 */}
@@ -203,6 +221,13 @@ function Home() {
                 </Box>
               </HStack>
             ))}
+            {isLoading && (
+              <HStack justify="flex-start">
+                <Box bg="white" px={4} py={2} borderRadius="12px">
+                  <Text fontSize="sm" color="gray.500">AI가 답변을 생각주입니다...</Text>
+                </Box>
+              </HStack>
+            )}
           </VStack>
         </Box>
 
@@ -215,6 +240,7 @@ function Home() {
             onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
             bg="white"
             borderColor="gray.300"
+            disabled={isLoading}
           />
           <InputRightElement width="4.5rem">
             <Button
@@ -223,6 +249,7 @@ function Home() {
               colorScheme="purple"
               onClick={handleSendMessage}
               leftIcon={<FiSend />}
+              isLoading={isLoading}
             >
               전송
             </Button>
@@ -236,7 +263,7 @@ function Home() {
 
       <Divider mb={6} />
 
-      {/* 차별화 포인트 영역 */}
+      {/* 차별화 포인트 영역 (Real Data) */}
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
         {/* 미해결 이슈 */}
         <Card>
@@ -245,31 +272,35 @@ function Home() {
               <FiAlertCircle color="#4811BF" size={24} />
               <Heading size="md">미해결 이슈</Heading>
             </HStack>
-            <Badge colorScheme="red">{mockOpenIssues.length}개</Badge>
+            <Badge colorScheme="red">{realIssues.length}개</Badge>
           </HStack>
 
           <VStack align="stretch" spacing={3}>
-            {mockOpenIssues.map((issue) => (
-              <Box
-                key={issue.id}
-                p={3}
-                bg="red.50"
-                borderRadius="8px"
-                borderLeft="4px solid"
-                borderColor="red.500"
-                cursor="pointer"
-                _hover={{ bg: "red.100" }}
-              >
-                <Text fontWeight="bold" fontSize="sm" mb={1}>
-                  {issue.title}
-                </Text>
-                <HStack fontSize="xs" color="gray.600">
-                  <Text>마지막 언급: {issue.lastMentioned}</Text>
-                  <Text>·</Text>
-                  <Text>담당: {issue.owner}</Text>
-                </HStack>
-              </Box>
-            ))}
+            {realIssues.length > 0 ? (
+              realIssues.map((issue, index) => (
+                <Box
+                  key={index}
+                  p={3}
+                  bg="red.50"
+                  borderRadius="8px"
+                  borderLeft="4px solid"
+                  borderColor="red.500"
+                  cursor="pointer"
+                  _hover={{ bg: "red.100" }}
+                >
+                  <Text fontWeight="bold" fontSize="sm" mb={1}>
+                    {issue.title}
+                  </Text>
+                  <HStack fontSize="xs" color="gray.600">
+                    <Text>마지막 언급: {issue.lastMentioned}</Text>
+                    <Text>·</Text>
+                    <Text>담당: {issue.owner}</Text>
+                  </HStack>
+                </Box>
+              ))
+            ) : (
+              <Text color="gray.500" fontSize="sm" py={2}>미해결 이슈가 없습니다. (RAG 데이터 없음)</Text>
+            )}
           </VStack>
         </Card>
 
@@ -281,19 +312,23 @@ function Home() {
           </HStack>
 
           <VStack align="stretch" spacing={3}>
-            {mockSuggestedAgenda.map((agenda, index) => (
-              <HStack
-                key={index}
-                p={3}
-                bg="green.50"
-                borderRadius="8px"
-                borderLeft="4px solid"
-                borderColor="green.500"
-              >
-                <Badge colorScheme="green">{index + 1}</Badge>
-                <Text fontSize="sm">{agenda}</Text>
-              </HStack>
-            ))}
+            {realAgendas.length > 0 ? (
+              realAgendas.map((agenda, index) => (
+                <HStack
+                  key={index}
+                  p={3}
+                  bg="green.50"
+                  borderRadius="8px"
+                  borderLeft="4px solid"
+                  borderColor="green.500"
+                >
+                  <Badge colorScheme="green">{index + 1}</Badge>
+                  <Text fontSize="sm">{agenda}</Text>
+                </HStack>
+              ))
+            ) : (
+              <Text color="gray.500" fontSize="sm" py={2}>추천 안건이 없습니다. (RAG 데이터 없음)</Text>
+            )}
           </VStack>
 
           <Button
@@ -308,57 +343,48 @@ function Home() {
         </Card>
       </SimpleGrid>
 
-      {/* 최근 회의 목록 */}
+      {/* 최근 회의 목록 (Real Data) */}
       <Card>
         <Heading size="md" mb={4}>
           최근 회의
         </Heading>
 
         <VStack align="stretch" spacing={3}>
-          {mockMeetings.map((meeting) => (
-            <Box
-              key={meeting.id}
-              p={4}
-              bg="gray.50"
-              borderRadius="12px"
-              cursor="pointer"
-              _hover={{ bg: "gray.100", transform: "translateY(-2px)" }}
-              transition="all 0.2s"
-              onClick={() => navigate(`/result/${meeting.id}`)}
-            >
-              <HStack justify="space-between" mb={2}>
-                <Text fontWeight="bold" fontSize="lg">
-                  {meeting.title}
+          {realMeetings.length > 0 ? (
+            realMeetings.map((meeting) => (
+              <Box
+                key={meeting.id}
+                p={4}
+                bg="gray.50"
+                borderRadius="12px"
+                cursor="pointer"
+                _hover={{ bg: "gray.100", transform: "translateY(-2px)" }}
+                transition="all 0.2s"
+                onClick={() => navigate("/result", { state: { meetingData: meeting } })}
+              >
+                <HStack justify="space-between" mb={2}>
+                  <Text fontWeight="bold" fontSize="lg">
+                    {meeting.title}
+                  </Text>
+                  <Badge colorScheme="green">분석 완료</Badge>
+                </HStack>
+
+                <HStack fontSize="sm" color="gray.600" mb={2}>
+                  <Text>{meeting.date}</Text>
+                  <Text>·</Text>
+                  <Text>AI 요약본 저장됨</Text>
+                </HStack>
+
+                <Text fontSize="sm" color="gray.500" noOfLines={2}>
+                  {meeting.summary}
                 </Text>
-                <Badge colorScheme="purple">{meeting.duration}</Badge>
-              </HStack>
-
-              <HStack fontSize="sm" color="gray.600" mb={2}>
-                <Text>{meeting.date}</Text>
-                <Text>·</Text>
-                <Text>{meeting.participants.length}명 참석</Text>
-              </HStack>
-
-              <HStack spacing={4} fontSize="sm">
-                <HStack>
-                  <Badge colorScheme="blue">{meeting.decisions.length}</Badge>
-                  <Text color="gray.600">결정사항</Text>
-                </HStack>
-                <HStack>
-                  <Badge colorScheme="orange">
-                    {meeting.actionItems.length}
-                  </Badge>
-                  <Text color="gray.600">액션 아이템</Text>
-                </HStack>
-                {meeting.openIssues && (
-                  <HStack>
-                    <Badge colorScheme="red">{meeting.openIssues.length}</Badge>
-                    <Text color="gray.600">미해결 이슈</Text>
-                  </HStack>
-                )}
-              </HStack>
-            </Box>
-          ))}
+              </Box>
+            ))
+          ) : (
+            <Text color="gray.500" py={4} textAlign="center">
+              최근 회의 기록이 없습니다. (Azure Search에서 데이터를 찾을 수 없습니다)
+            </Text>
+          )}
         </VStack>
       </Card>
     </Box>

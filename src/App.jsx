@@ -49,7 +49,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/result/:id"
+          path="/result"
           element={
             <ProtectedRoute>
               <AppLayout>

@@ -17,10 +17,15 @@ export const AppProvider = ({ children }) => {
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
 
+  const [transcript, setTranscript] = useState("")
+  const [aiSummary, setAiSummary] = useState("")
+
   const startMeeting = (meetingData) => {
     setCurrentMeeting(meetingData)
     setIsRecording(true)
     setRecordingTime(0)
+    setTranscript("") // 초기화
+    setAiSummary("")
   }
 
   const stopRecording = () => {
@@ -45,6 +50,10 @@ export const AppProvider = ({ children }) => {
     startMeeting,
     stopRecording,
     addMeeting,
+    transcript, // 추가
+    setTranscript, // 추가
+    aiSummary, // 추가
+    setAiSummary, // 추가
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

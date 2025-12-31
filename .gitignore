@@ -5,6 +5,7 @@
 Backend/.env
 *.pem
 *.key
+token_cache.bin
 
 # 2. 파이썬 쓰레기
 __pycache__/

@@ -40,7 +40,7 @@ function Home() {
       time: "10:30",
     },
   ]);
-  // const [chatInput, setChatInput] = useState("");  
+  const [chatInput, setChatInput] = useState("");  
   // isLoading 상태 선언
     const [isLoading, setIsLoading] = useState(false)
   const handleStartMeeting = () => {

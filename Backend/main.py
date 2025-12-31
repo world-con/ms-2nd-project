@@ -1,8 +1,9 @@
 import os
 import uuid
 import time
-import asyncio # 추가 : 비동기 대기용
-import httpx # 추가 : 비동기 요청용
+import asyncio
+import httpx
+import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -16,8 +17,10 @@ import outlook_service
 import llm_agent
 import rag_service
 
-# Azure
+# Azure & LangChain
 from openai import AzureOpenAI
+from azure.search.documents import SearchClient
+from azure.core.credentials import AzureKeyCredential
 
 # 환경변수 로드
 load_dotenv()
@@ -34,21 +37,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Calendar DTO 정의 ---
-class CalendarRequest(BaseModel):
-    title: str
-    date: str
-    time: str
-    attendees: List[str]
-
-class TodoRequest(BaseModel):
-    title: str
-    content: str = None
-    due_date: str = None # 추가 된 마감 기한 (YYYY-MM-DD)
-
-
 # --- 설정값 ---
 LOGIC_APP_URL = os.getenv("LOGIC_APP_URL_MAIL")
+SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT")
+SEARCH_KEY = os.getenv("AZURE_SEARCH_API_KEY")
+INDEX_NAME = os.getenv("AZURE_SEARCH_INDEX_NAME")
 
 # 팀원 리스트
 team_members = [
@@ -74,6 +67,21 @@ class EmailRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
 
+class CalendarRequest(BaseModel):
+    title: str
+    date: str
+    time: str
+    attendees: List[str]
+
+class TodoRequest(BaseModel):
+    title: str
+    content: str = None
+    due_date: str = None
+
+# ===========================
+# API 엔드포인트
+# ===========================
+
 # 1. 챗봇 질문
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
@@ -86,38 +94,148 @@ async def chat_endpoint(request: ChatRequest):
         print(f"에러: {e}")
         return {"answer": "죄송합니다. 처리 중 오류가 발생했습니다."}
 
-# 2. [분석 단계] 요약 + DB저장 (메일 전송 X)
-@app.post("/analyze-meeting")
+# [API 4] 대시보드 데이터 조회 (홈 화면용)
+@app.get("/api/dashboard-data") # <-- URL 수정: /api prefix 추가 권장
+async def get_dashboard_data():
+    print("📊 대시보드 데이터 조회 중...")
+    try:
+        search_client = SearchClient(SEARCH_ENDPOINT, INDEX_NAME, AzureKeyCredential(SEARCH_KEY))
+        
+        # 최근 10개 조회
+        results = search_client.search(
+            search_text="*", 
+            select=["content", "source", "id"],
+            top=10 
+        )
+        
+        real_meetings = []
+        all_open_issues = []
+        all_suggested_agendas = []
+
+        for r in results:
+            content_str = r.get("content", "")
+            source_str = r.get("source", "날짜 미상")
+            
+            summary_text = ""
+            
+            # JSON 파싱 시도
+            try:
+                data = json.loads(content_str)
+                
+                # 1. 요약본 추출
+                summary_text = data.get("summary", "")
+                if isinstance(summary_text, dict):
+                    summary_text = str(summary_text)
+
+                # 2. 미해결 이슈 수집
+                issues = data.get("openIssues", [])
+                if isinstance(issues, list):
+                    for issue in issues:
+                        if isinstance(issue, dict):
+                            all_open_issues.append({
+                                "id": str(uuid.uuid4()),
+                                "title": issue.get("title", "제목 없음"),
+                                "lastMentioned": issue.get("lastMentioned", "최근"),
+                                "owner": issue.get("owner", "미정")
+                            })
+                        elif isinstance(issue, str):
+                            all_open_issues.append({
+                                "id": str(uuid.uuid4()),
+                                "title": issue,
+                                "lastMentioned": "최근",
+                                "owner": "미정"
+                            })
+
+                # 3. 추천 안건 수집
+                agendas = data.get("insights", {}).get("recommendations", [])
+                if not agendas:
+                    agendas = data.get("suggested_agenda", [])
+                
+                if isinstance(agendas, list):
+                    all_suggested_agendas.extend(agendas)
+
+            except json.JSONDecodeError:
+                # JSON 아니면 그냥 텍스트로 취급
+                summary_text = content_str[:100] + "..."
+
+            # 회의 목록에 추가
+            real_meetings.append({
+                "id": r.get("id", str(uuid.uuid4())),
+                "title": source_str,
+                "date": source_str.split(" ")[0] if " " in source_str else "날짜 미상",
+                "summary": summary_text,
+                "participants": ["Team"],
+                "actionItems": []
+            })
+
+        return {
+            "status": "success", 
+            "meetings": real_meetings[:5], 
+            "open_issues": all_open_issues[:4], 
+            "suggested_agenda": all_suggested_agendas[:4] 
+        }
+
+    except Exception as e:
+        print(f"❌ 대시보드 조회 실패: {e}")
+        return {"status": "error", "meetings": [], "open_issues": [], "suggested_agenda": []}
+
+# 2. [분석 단계] 심층 분석 + DB저장
+@app.post("/api/analyze-meeting")
 async def analyze_meeting(request: EmailRequest):
-    print("🧠 회의 분석 및 DB 저장 시작...")
+    print("🧠 회의 심층 분석 (JSON) 시작...")
 
     if len(request.summary_text.strip()) < 5:
-        return {"status": "success", "summary": "내용이 너무 짧습니다."}
+        return {"status": "success", "data": {"summary": "내용이 너무 짧습니다."}}
 
     try:
+        # 1. 시스템 프롬프트: JSON 구조를 명확히 정의
+        system_prompt = """
+        너는 수석 비즈니스 분석가야. 회의 스크립트를 분석해서 아래 JSON 포맷으로 완벽하게 구조화해.
+        
+        [필수 포함 항목 및 규칙]
+        1. summary: 전체 내용을 3줄 요약 (HTML <br> 태그 사용 가능)
+        2. decisions: 확정된 결정 사항 리스트 (문자열 배열)
+        3. actionItems: 구체적인 할 일 리스트. 각 항목은 {"task": "할일내용", "assignee": "담당자(없으면 '미정')", "deadline": "기한(없으면 '추후 협의')", "status": "active"} 형태여야 함.
+        4. openIssues: 해결되지 않은 이슈 리스트. 각 항목은 {"title": "이슈명", "lastMentioned": "오늘", "owner": "관련자"} 형태.
+        5. insights: 심층 분석 객체
+           - meetingType: 회의 성격 (예: 주간보고, 아이디어회의, 긴급점검 등)
+           - sentiment: 전체 분위기 (긍정적/중립적/부정적)
+           - keyTopics: 핵심 키워드 5개 이내
+           - risks: 잠재적 리스크 리스트. {"description": "내용", "level": "high/medium/low"}
+           - recommendations: AI가 제안하는 개선점 리스트
+        
+        반드시 JSON 형식만 출력해. 마크다운(```json) 쓰지 마.
+        """
+
+        # 2. AI 호출 (JSON 모드)
         response = client.chat.completions.create(
             model=DEPLOYMENT_NAME,
             messages=[
-                {"role": "system", "content": "회의 내용을 [핵심요약/결정사항/할일] 로 요약해. HTML 태그 없이 텍스트만 줘."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": request.summary_text}
-            ]
+            ],
+            response_format={"type": "json_object"} 
         )
-        ai_summary = response.choices[0].message.content
+        ai_response_str = response.choices[0].message.content
         
-        # DB 저장
-        rag_service.save_to_vector_db(ai_summary)
+        # 3. DB 저장 (전체 데이터 저장)
+        # rag_service.save_to_vector_db 는 원래 텍스트만 받지만, JSON String도 텍스트이므로 저장 가능
+        rag_service.save_to_vector_db(ai_response_str)
 
-        # 요약본만 반환
-        return {"status": "success", "summary": ai_summary}
+        # 4. JSON 파싱해서 리턴
+        try:
+            ai_data = json.loads(ai_response_str)
+            return {"status": "success", "data": ai_data} 
+        except json.JSONDecodeError:
+            return {"status": "success", "data": {"summary": ai_response_str}}
 
     except Exception as e:
         print(f"❌ AI 에러: {e}")
         if "content_filter" in str(e):
-            return {"status": "success", "summary": "⚠️ 보안 필터가 작동했습니다."}
+            return {"status": "success", "data": {"summary": "⚠️ 보안 필터가 작동했습니다."}}
         return {"status": "error", "message": str(e)}
 
-# [자동화 기능 탭] 메일 전송 (요약 X)
-# 사용자가 '승인' 버튼 누르면 실행됨
+# [자동화 기능 탭] 메일 전송
 @app.post("/api/execute-action")
 async def execute_action(request: EmailRequest):
     print("🚀 사용자 승인 완료! 메일 전송 시작...")
@@ -134,7 +252,6 @@ async def execute_action(request: EmailRequest):
     """
 
     count = 0
-    # 서버 멈춤 방지
     async with httpx.AsyncClient() as http_client:
         for member in team_members:
             try:
@@ -161,7 +278,6 @@ async def create_outlook_task(request: TodoRequest):
 async def approve_calendar(item: CalendarRequest):
     try:
         # 1. 문자열 데이터를 datetime 객체로 변환
-        # item.date: "2024-05-25", item.time: "14:00" 가정
         start_str = f"{item.date}T{item.time}:00"
         start_dt = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S")
         
@@ -171,7 +287,6 @@ async def approve_calendar(item: CalendarRequest):
         # 3. 다시 문자열로 변환 (ISO 8601 형식)
         end_str = end_dt.strftime("%Y-%m-%dT%H:%M:%S")
 
-        # 4. Outlook 포맷으로 변환
         event_body = {
             "subject": item.title,
             "body": {
@@ -183,7 +298,7 @@ async def approve_calendar(item: CalendarRequest):
                 "timeZone": "Korea Standard Time"
             },
             "end": {
-                "dateTime": end_str, # 계산된 종료 시간 사용
+                "dateTime": end_str, 
                 "timeZone": "Korea Standard Time"
             }, 
         }
@@ -192,14 +307,11 @@ async def approve_calendar(item: CalendarRequest):
         success, msg = outlook_service.send_event_to_logic_app(event_body)
         
         if not success:
-            # 실패 시 500 에러와 함께 원인 메시지 반환
             raise HTTPException(status_code=500, detail=f"Outlook 연동 실패: {msg}")
             
         return {"status": "success", "message": "일정이 정상적으로 등록되었습니다."}
 
     except ValueError:
-
-        # 날짜 형식이 잘못 들어왔을 때 처리
         raise HTTPException(status_code=400, detail="날짜/시간 형식이 올바르지 않습니다.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

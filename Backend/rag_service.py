@@ -17,8 +17,8 @@ SEARCH_KEY = os.getenv("AZURE_SEARCH_API_KEY")
 INDEX_NAME = os.getenv("AZURE_SEARCH_INDEX_NAME")
 
 embeddings = AzureOpenAIEmbeddings(
-    azure_deployment="text-embedding-ada-002",
-    openai_api_version="2023-05-15",
+    azure_deployment="text-embedding-3-small",
+    openai_api_version="AZURE_OPENAI_API_VERSION",
 )
 
 # 추가 : rag_chat.py에서 가져온 GPT 모델 설정 코드

@@ -71,7 +71,7 @@ def send_event_to_logic_app(event_body):
         return False, str(e)
 
 # Microsoft Graph API를 이용한 To-Do 생성 함수 (Microsoft To Do API 사용)
-def create_todo_task(title, content=None):
+def create_todo_task(title, content=None, due_date=None):
     """Microsoft Do Do(Tasks)에 작업을 추가하는 함수"""
     token = get_access_token()
     if not token:
@@ -110,12 +110,26 @@ def create_todo_task(title, content=None):
         tasks_url = f"https://graph.microsoft.com/v1.0/me/todo/lists/{default_list_id}/tasks"
         
         payload = {
-            "title": title,  # 작업 제목 (Outlook Tasks API의 subject -> title 변경)
+            "title": title,  # 작업 제목
             "body": {
                 "contentType": "text",
                 "content": content if content else "자동 생성된 작업입니다."
             }
         }
+
+        # 마감기한이 있으면 추가 (형식: YYYY-MM-DD)
+        if due_date:
+            try:
+                # Microsoft Graph API의 dueDateTime 형식에 맞춤
+                # 시간은 해당 날짜의 자정(00:00:00)이나 
+                # 또는 편의상 다음날 0시로 잡기도 하지만, 
+                # 여기서는 단순히 날짜 + UTC 자정으로 설정
+                payload["dueDateTime"] = {
+                    "dateTime": f"{due_date}T00:00:00",
+                    "timeZone": "Korea Standard Time"
+                }
+            except Exception:
+                pass # 날짜 형식이 안 맞으면 생략
         
         response = requests.post(tasks_url, headers=headers, json=payload)
         

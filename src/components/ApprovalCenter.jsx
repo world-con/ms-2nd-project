@@ -215,32 +215,55 @@ function ApprovalCenter({ approvalItems: initialItems }) {
           //     console.log(`[Success] Email sent`)
           // }
 
-          // [CASE C] Outlook Todo 생성 로직 추가
+          // [CASE C] Outlook Todo 생성 로직 수정
           else if (item.type === 'todo') {
-            // [수정] 상세 Todo 항목들을 문자열로 변환
-            let contentBody = item.description; // 기본값
 
-            if (item.details && item.details.todoItems) {
-              contentBody = item.details.todoItems.map((todo, idx) =>
-                `${idx + 1}\n${todo.task}\n(${todo.assignee})\n${todo.deadline}`
-              ).join('\n\n');
+            // 세부 Todo 항목들이 있다면 각각 하나씩 등록
+            if (item.details && item.details.todoItems && item.details.todoItems.length > 0) {
+
+              for (const todo of item.details.todoItems) {
+
+
+                const taskTitle = `${todo.task} - ${todo.assignee}`
+                const taskContent = `원래 요청 항목: ${item.title}\n설명: ${item.description}`
+
+                const response = await fetch('http://localhost:8000/api/create-outlook-task', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    title: taskTitle,
+                    content: taskContent,
+                    due_date: todo.deadline // 기한 전달
+                  }),
+                });
+
+                if (!response.ok) {
+                  console.error(`Todo 생성 실패: ${taskTitle}`);
+                  // 개별 실패는 로그만 남기고 계속 진행 (또는 throw로 중단 선택 가능)
+                } else {
+                  console.log(`[Success] Todo created: ${taskTitle}`);
+                }
+
+                // API 속도 제한 고려하여 약간의 텀을 둠
+                await new Promise(r => setTimeout(r, 300));
+              }
+
+            } else {
+              // 세부 항목이 없는 경우 기존 방식대로 통으로 등록 (fallback)
+              const response = await fetch('http://localhost:8000/api/create-outlook-task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  title: item.title,
+                  content: item.description
+                }),
+              });
+
+              if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || 'Todo 생성 실패');
+              }
             }
-
-            const response = await fetch('http://localhost:8000/api/create-outlook-task', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: item.title,
-                content: contentBody
-              }),
-            });
-
-            if (!response.ok) {
-              const err = await response.json();
-              throw new Error(err.detail || 'Todo 생성 실패');
-            }
-
-            console.log(`[Success] Todo created: ${item.title}`);
           }
 
           // 성공 처리
@@ -260,7 +283,6 @@ function ApprovalCenter({ approvalItems: initialItems }) {
         }
 
         // 4. 진행률 업데이트 (공통)
-        // 실제 API 호출 시간이 있으므로 인위적인 delay(setTimeout)는 제거
         setExecutionProgress(((i + 1) / selectedCount) * 100)
       }
 

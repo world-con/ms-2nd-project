@@ -44,6 +44,7 @@ class CalendarRequest(BaseModel):
 class TodoRequest(BaseModel):
     title: str
     content: str = None
+    due_date: str = None # 추가 된 마감 기한 (YYYY-MM-DD)
 
 
 # --- 설정값 ---
@@ -147,8 +148,8 @@ async def execute_action(request: EmailRequest):
 # [추가] Outlook Todo 생성 엔드포인트
 @app.post("/api/create-outlook-task")
 async def create_outlook_task(request: TodoRequest):
-    print(f"📝 Outlook Todo 생성 요청: {request.title}")
-    success, msg = outlook_service.create_todo_task(request.title, request.content)
+    print(f"📝 Outlook Todo 생성 요청: {request.title} (기한: {request.due_date})")
+    success, msg = outlook_service.create_todo_task(request.title, request.content, request.due_date)
     
     if success:
         return {"status": "success", "message": "작업이 등록되었습니다."}

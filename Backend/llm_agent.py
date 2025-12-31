@@ -32,7 +32,8 @@ tools = [
                     "start_offset": {"type": "integer", "description": "Days from today to start (0=today, 1=tomorrow)"},
                     "duration_days": {"type": "integer", "description": "Duration in days (default 1)"},
                     "attendees": {"type": "array", "items": {"type": "string"}, "description": "List of attendee emails"},
-                    "specific_time": {"type": "string", "description": "HH:MM format time (e.g. '14:00'). null if not specified."}
+                    "specific_time": {"type": "string", "description": "HH:MM format time (e.g. '14:00'). null if not specified."},
+                    "location": {"type": "string", "description": "Location of the meeting (e.g. 'Busan', 'Conference Room 1')"}
                 },
                 "required": ["subject", "start_offset"]
             }
@@ -134,6 +135,13 @@ def process_chat_request(user_message):
                         "start": {"dateTime": start_dt_str, "timeZone": "Korea Standard Time"},
                         "end": {"dateTime": end_dt_str, "timeZone": "Korea Standard Time"},
                     }
+
+                    # 위치 정보가 있으면 추가
+                    location = args.get('location')
+                    if location:
+                        event_body["location"] = {
+                            "displayName": location
+                        }
                 
                     success, result_msg = outlook_service.send_event_to_logic_app(event_body)
                     return f"✅ 일정 등록 결과: {result_msg} (제목: {args.get('subject')})"

@@ -41,6 +41,10 @@ class CalendarRequest(BaseModel):
     time: str
     attendees: List[str]
 
+class TodoRequest(BaseModel):
+    title: str
+    content: str = None
+
 
 # --- 설정값 ---
 LOGIC_APP_URL = os.getenv("LOGIC_APP_URL_MAIL")
@@ -139,6 +143,17 @@ async def execute_action(request: EmailRequest):
             except: pass
 
     return {"status": "success", "sent_count": count}
+
+# [추가] Outlook Todo 생성 엔드포인트
+@app.post("/api/create-outlook-task")
+async def create_outlook_task(request: TodoRequest):
+    print(f"📝 Outlook Todo 생성 요청: {request.title}")
+    success, msg = outlook_service.create_todo_task(request.title, request.content)
+    
+    if success:
+        return {"status": "success", "message": "작업이 등록되었습니다."}
+    else:
+        raise HTTPException(status_code=500, detail=msg)
 
 # [실행 단계] 일정 자동화 기능
 @app.post("/api/approve-calendar")

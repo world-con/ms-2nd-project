@@ -70,37 +70,61 @@ def send_event_to_logic_app(event_body):
     except Exception as e:
         return False, str(e)
 
-# Microsoft Graph API를 이용한 To-Do 생성 함수
-def create_todo_task(subject, content=None):
-    """Microsoft Outlook Tasks(To-Do)에 작업을 추가하는 함수"""
+# Microsoft Graph API를 이용한 To-Do 생성 함수 (Microsoft To Do API 사용)
+def create_todo_task(title, content=None):
+    """Microsoft Do Do(Tasks)에 작업을 추가하는 함수"""
     token = get_access_token()
     if not token:
         return False, "인증 실패"
 
-    # Microsoft Graph API: Outlook Tasks 엔드포인트
-    url = "https://graph.microsoft.com/v1.0/me/outlook/tasks"
-    
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
-    
-    payload = {
-        "subject": subject,  # 작업 제목
-        "body": {
-            "contentType": "text",
-            "content": content if content else "자동 생성된 작업입니다."
-        }
-    }
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        # 1. 기본 Task List ID 가져오기
+        lists_url = "https://graph.microsoft.com/v1.0/me/todo/lists"
+        list_resp = requests.get(lists_url, headers=headers)
+        
+        if list_resp.status_code != 200:
+             return False, f"Task List 조회 실패: {list_resp.text}"
+        
+        lists_data = list_resp.json()
+        default_list_id = None
+        
+        # wellknownListName이 defaultList인 것 찾기
+        for lst in lists_data.get("value", []):
+            if lst.get("wellknownListName") == "defaultList":
+                default_list_id = lst.get("id")
+                break
+        
+        # 없으면 첫 번째 리스트 사용
+        if not default_list_id and lists_data.get("value"):
+            default_list_id = lists_data["value"][0]["id"]
+            
+        if not default_list_id:
+            return False, "사용 가능한 Task List가 없습니다."
+            
+        # 2. 해당 리스트에 Task 생성
+        tasks_url = f"https://graph.microsoft.com/v1.0/me/todo/lists/{default_list_id}/tasks"
+        
+        payload = {
+            "title": title,  # 작업 제목 (Outlook Tasks API의 subject -> title 변경)
+            "body": {
+                "contentType": "text",
+                "content": content if content else "자동 생성된 작업입니다."
+            }
+        }
+        
+        response = requests.post(tasks_url, headers=headers, json=payload)
         
         # 201 Created: 성공적으로 생성됨
         if response.status_code == 201:
             return True, "성공"
         else:
             return False, f"Graph API 오류: {response.text}"
+            
     except Exception as e:
         return False, str(e)
     

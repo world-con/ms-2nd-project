@@ -176,7 +176,7 @@ async def approve_calendar(item: CalendarRequest):
             "subject": item.title,
             "body": {
                 "contentType": "Text", 
-                "content": "이 일정은 관리자(사용자)에 의해 승인되어 등록되었습니다."
+                "content": f"참석자: {', '.join(item.attendees)}"
             },
             "start": {
                 "dateTime": start_str, 

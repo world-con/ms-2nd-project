@@ -91,51 +91,6 @@ function ApprovalCenter({ approvalItems: initialItems }) {
     }, 2000);
   };
 
-  // const handleApprove = async () => {
-  //   const selectedCount = Object.values(selectedItems).filter(Boolean).length;
-
-  //   if (selectedCount === 0) {
-  //     toast({
-  //       title: "항목을 선택해주세요",
-  //       description: "실행할 자동화 항목을 체크해주세요",
-  //       status: "warning",
-  //       duration: 2000,
-  //     });
-  //     return;
-  //   }
-
-  //   setIsExecuting(true);
-  //   setExecutionProgress(0);
-
-  //   // 시뮬레이션: 각 항목을 순차적으로 실행
-  //   const selectedIds = Object.keys(selectedItems).filter(
-  //     (id) => selectedItems[id]
-  //   );
-  //   const totalSteps = selectedIds.length;
-
-  //   for (let i = 0; i < totalSteps; i++) {
-  //     const itemId = selectedIds[i];
-
-  //     // 진행률 업데이트
-  //     setExecutionProgress(((i + 1) / totalSteps) * 100);
-
-  //     // 완료 표시
-  //     await new Promise((resolve) => setTimeout(resolve, 1500));
-  //     setCompletedItems((prev) => ({ ...prev, [itemId]: true }));
-  //   }
-
-  //   // 완료 토스트
-  //   toast({
-  //     title: "자동화 실행 완료! 🎉",
-  //     description: `${selectedCount}개 작업이 성공적으로 완료되었습니다`,
-  //     status: "success",
-  //     duration: 4000,
-  //     isClosable: true,
-  //   });
-
-  //   setIsExecuting(false);
-  // };
-
   const handleApprove = async () => {
     // 1. 선택된 항목 필터링 (공통 로직)
     const selectedIds = Object.keys(selectedItems).filter((id) => selectedItems[id])

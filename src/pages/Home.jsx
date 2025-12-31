@@ -40,8 +40,9 @@ function Home() {
       time: "10:30",
     },
   ]);
-  const [chatInput, setChatInput] = useState("");
-
+  const [chatInput, setChatInput] = useState("");  
+  // isLoading 상태 선언
+    const [isLoading, setIsLoading] = useState(false)
   const handleStartMeeting = () => {
     const newMeeting = {
       id: Date.now(),
@@ -55,8 +56,8 @@ function Home() {
     startMeeting(newMeeting);
     navigate("/meeting");
   };
-
-  const handleSendMessage = () => {
+  // 백엔드 API와 통신하는 함수
+  const handleSendMessage = async () => {
     if (chatInput.trim() === "") return;
 
     // 사용자 메시지 추가
@@ -72,20 +73,42 @@ function Home() {
     setChatMessages([...chatMessages, userMessage]);
 
     // AI 응답 시뮬레이션
-    setTimeout(() => {
+    // setTimeout(() => {
+    try {
+    // 2. Python 백엔드(FastAPI)로 전송
+    const response = await fetch("http://localhost:8000/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: userMessage.text }),
+    });
+
+    if (!response.ok) throw new Error("서버 응답 에러");
+
+    const data = await response.json();
+
+    // AI 응답 화면 표시
       const aiResponse = {
         id: Date.now() + 1,
         sender: "ai",
-        text: getAIResponse(chatInput),
+        text: data.answer,
         time: new Date().toLocaleTimeString("ko-KR", {
           hour: "2-digit",
           minute: "2-digit",
         }),
-      };
-      setChatMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
-
-    setChatInput("");
+      }
+      setChatMessages((prev) => [...prev, aiResponse])
+    } catch (error) {
+      console.error("Chat Error:", error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: "죄송합니다. 서버 연결에 실패했습니다. (백엔드가 켜져있나요?)",
+        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      }
+      setChatMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false) // 로딩 종료
+    }
   };
 
   const getAIResponse = (input) => {

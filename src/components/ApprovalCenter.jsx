@@ -91,51 +91,168 @@ function ApprovalCenter({ approvalItems: initialItems }) {
     }, 2000);
   };
 
-  const handleApprove = async () => {
-    const selectedCount = Object.values(selectedItems).filter(Boolean).length;
+  // const handleApprove = async () => {
+  //   const selectedCount = Object.values(selectedItems).filter(Boolean).length;
 
+  //   if (selectedCount === 0) {
+  //     toast({
+  //       title: "항목을 선택해주세요",
+  //       description: "실행할 자동화 항목을 체크해주세요",
+  //       status: "warning",
+  //       duration: 2000,
+  //     });
+  //     return;
+  //   }
+
+  //   setIsExecuting(true);
+  //   setExecutionProgress(0);
+
+  //   // 시뮬레이션: 각 항목을 순차적으로 실행
+  //   const selectedIds = Object.keys(selectedItems).filter(
+  //     (id) => selectedItems[id]
+  //   );
+  //   const totalSteps = selectedIds.length;
+
+  //   for (let i = 0; i < totalSteps; i++) {
+  //     const itemId = selectedIds[i];
+
+  //     // 진행률 업데이트
+  //     setExecutionProgress(((i + 1) / totalSteps) * 100);
+
+  //     // 완료 표시
+  //     await new Promise((resolve) => setTimeout(resolve, 1500));
+  //     setCompletedItems((prev) => ({ ...prev, [itemId]: true }));
+  //   }
+
+  //   // 완료 토스트
+  //   toast({
+  //     title: "자동화 실행 완료! 🎉",
+  //     description: `${selectedCount}개 작업이 성공적으로 완료되었습니다`,
+  //     status: "success",
+  //     duration: 4000,
+  //     isClosable: true,
+  //   });
+
+  //   setIsExecuting(false);
+  // };
+
+  const handleApprove = async () => {
+    // 1. 선택된 항목 필터링 (공통 로직)
+    const selectedIds = Object.keys(selectedItems).filter((id) => selectedItems[id])
+    const selectedCount = selectedIds.length
+
+    // 선택된 게 없으면 경고
     if (selectedCount === 0) {
       toast({
-        title: "항목을 선택해주세요",
-        description: "실행할 자동화 항목을 체크해주세요",
-        status: "warning",
+        title: '항목을 선택해주세요',
+        description: '실행할 자동화 항목을 체크해주세요',
+        status: 'warning',
         duration: 2000,
+      })
+      return
+    }
+
+    // 2. 실행 상태 시작
+    setIsExecuting(true)
+    setExecutionProgress(0)
+
+    try {
+      // 3. 순차적 실행 루프
+      for (let i = 0; i < selectedCount; i++) {
+        const itemId = selectedIds[i]
+        const item = approvalItems.find((p) => p.id === itemId)
+
+        if (!item) continue
+
+        // ---------------------------------------------------------
+        // [분기 처리] 아이템 타입에 따라 다른 행동 수행
+        // ---------------------------------------------------------
+        
+        try {
+          // [CASE A] 캘린더 일정 등록 (1번 코드 로직)
+          if (item.type === 'calendar' && item.details) {
+            const response = await fetch('http://localhost:8000/api/approve-calendar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: item.details.title,
+                date: item.details.date,
+                time: item.details.time,
+                attendees: item.details.attendees || [],
+              }),
+            })
+
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.detail || '서버 오류')
+            }
+            
+            // 성공 로그 (선택 사항)
+            console.log(`[Success] Calendar: ${item.title}`)
+          } 
+          
+          // [CASE B] 이메일 발송 (2번 코드 로직)
+          else if (item.type === 'email') {
+            // 백엔드(/api/execute-action) 호출
+            const response = await fetch('http://localhost:8000/api/execute-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                // 백엔드 EmailRequest 모델의 'summary_text' 필드에 맞춤
+                summary_text: item.details.body || item.description || "회의 결과 리포트입니다."
+              }),
+            })
+            
+            if (!response.ok) {
+              throw new Error('메일 서버 전송 실패')
+            }
+
+            console.log(`[Success] Email sent to team members`)
+          }
+          //   if (onSendEmail) {
+          //     await onSendEmail() 
+          //   }
+          //     console.log(`[Success] Email sent`)
+          // }
+
+          // 성공 처리
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          setCompletedItems((prev) => ({ ...prev, [itemId]: true }));
+
+          } catch (innerError) {
+          // 개별 아이템 실패 시 전체가 멈추지 않도록 내부 catch 처리
+          console.error(`항목 실행 실패 (${item.type}):`, innerError)
+          toast({
+            title: '실행 실패',
+            description: `"${item.title}" 처리 중 오류: ${innerError.message}`,
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+          })
+        }
+
+        // 4. 진행률 업데이트 (공통)
+        // 실제 API 호출 시간이 있으므로 인위적인 delay(setTimeout)는 제거
+        setExecutionProgress(((i + 1) / selectedCount) * 100)
+      }
+
+      // 완료 토스트 
+      toast({
+        title: "자동화 실행 완료! 🎉",
+        description: `${selectedCount}개 작업이 성공적으로 완료되었습니다`,
+        status: "success",
+        duration: 4000,
+        isClosable: true,
       });
-      return;
+      
+    }catch (error) {
+      console.error("치명적 오류:", error);
+      toast({ title: "시스템 오류", status: "error"});
+    }finally {
+      setIsExecuting(false);
     }
-
-    setIsExecuting(true);
-    setExecutionProgress(0);
-
-    // 시뮬레이션: 각 항목을 순차적으로 실행
-    const selectedIds = Object.keys(selectedItems).filter(
-      (id) => selectedItems[id]
-    );
-    const totalSteps = selectedIds.length;
-
-    for (let i = 0; i < totalSteps; i++) {
-      const itemId = selectedIds[i];
-
-      // 진행률 업데이트
-      setExecutionProgress(((i + 1) / totalSteps) * 100);
-
-      // 완료 표시
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setCompletedItems((prev) => ({ ...prev, [itemId]: true }));
-    }
-
-    // 완료 토스트
-    toast({
-      title: "자동화 실행 완료! 🎉",
-      description: `${selectedCount}개 작업이 성공적으로 완료되었습니다`,
-      status: "success",
-      duration: 4000,
-      isClosable: true,
-    });
-
-    setIsExecuting(false);
+      
   };
-
   const getIcon = (type) => {
     switch (type) {
       case "calendar":

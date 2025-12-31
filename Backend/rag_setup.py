@@ -26,7 +26,7 @@ index_name = os.getenv("AZURE_SEARCH_INDEX_NAME")
 # 주의: Azure OpenAI에서 'text-embedding-3-small' 또는 'text-embedding-ada-002' 모델을 배포해야 합니다!
 # 배포 이름이 다르다면 아래 deployment를 수정하세요.
 embeddings = AzureOpenAIEmbeddings(
-    azure_deployment="text-embedding-ada-002", # 본인의 임베딩 배포 이름
+    azure_deployment="text-embedding-3-small", # 본인의 임베딩 배포 이름
     openai_api_version="2023-05-15",
 )
 

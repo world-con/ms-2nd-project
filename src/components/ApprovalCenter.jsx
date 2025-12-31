@@ -167,7 +167,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
         // ---------------------------------------------------------
         // [분기 처리] 아이템 타입에 따라 다른 행동 수행
         // ---------------------------------------------------------
-        
+
         try {
           // [CASE A] 캘린더 일정 등록 (1번 코드 로직)
           if (item.type === 'calendar' && item.details) {
@@ -186,11 +186,11 @@ function ApprovalCenter({ approvalItems: initialItems }) {
               const errorData = await response.json()
               throw new Error(errorData.detail || '서버 오류')
             }
-            
+
             // 성공 로그 (선택 사항)
             console.log(`[Success] Calendar: ${item.title}`)
-          } 
-          
+          }
+
           // [CASE B] 이메일 발송 (2번 코드 로직)
           else if (item.type === 'email') {
             // 백엔드(/api/execute-action) 호출
@@ -202,7 +202,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                 summary_text: item.details.body || item.description || "회의 결과 리포트입니다."
               }),
             })
-            
+
             if (!response.ok) {
               throw new Error('메일 서버 전송 실패')
             }
@@ -215,11 +215,39 @@ function ApprovalCenter({ approvalItems: initialItems }) {
           //     console.log(`[Success] Email sent`)
           // }
 
+          // [CASE C] Outlook Todo 생성 로직 추가
+          else if (item.type === 'todo') {
+            // [수정] 상세 Todo 항목들을 문자열로 변환
+            let contentBody = item.description; // 기본값
+
+            if (item.details && item.details.todoItems) {
+              contentBody = item.details.todoItems.map((todo, idx) =>
+                `${idx + 1}\n${todo.task}\n(${todo.assignee})\n${todo.deadline}`
+              ).join('\n\n');
+            }
+
+            const response = await fetch('http://localhost:8000/api/create-outlook-task', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: item.title,
+                content: contentBody
+              }),
+            });
+
+            if (!response.ok) {
+              const err = await response.json();
+              throw new Error(err.detail || 'Todo 생성 실패');
+            }
+
+            console.log(`[Success] Todo created: ${item.title}`);
+          }
+
           // 성공 처리
           await new Promise((resolve) => setTimeout(resolve, 1000));
           setCompletedItems((prev) => ({ ...prev, [itemId]: true }));
 
-          } catch (innerError) {
+        } catch (innerError) {
           // 개별 아이템 실패 시 전체가 멈추지 않도록 내부 catch 처리
           console.error(`항목 실행 실패 (${item.type}):`, innerError)
           toast({
@@ -244,14 +272,14 @@ function ApprovalCenter({ approvalItems: initialItems }) {
         duration: 4000,
         isClosable: true,
       });
-      
-    }catch (error) {
+
+    } catch (error) {
       console.error("치명적 오류:", error);
-      toast({ title: "시스템 오류", status: "error"});
-    }finally {
+      toast({ title: "시스템 오류", status: "error" });
+    } finally {
       setIsExecuting(false);
     }
-      
+
   };
   const getIcon = (type) => {
     switch (type) {
@@ -369,8 +397,8 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                   completedItems[item.id]
                     ? "green.50"
                     : selectedItems[item.id]
-                    ? "purple.50"
-                    : "gray.50"
+                      ? "purple.50"
+                      : "gray.50"
                 }
                 borderRadius="12px"
                 borderLeft="4px solid"
@@ -378,8 +406,8 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                   completedItems[item.id]
                     ? "green.500"
                     : selectedItems[item.id]
-                    ? "purple.500"
-                    : "gray.300"
+                      ? "purple.500"
+                      : "gray.300"
                 }
                 transition="all 0.3s"
               >

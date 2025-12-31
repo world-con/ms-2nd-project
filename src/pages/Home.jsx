@@ -40,7 +40,7 @@ function Home() {
       time: "10:30",
     },
   ]);
-  const [chatInput, setChatInput] = useState("");  
+  // const [chatInput, setChatInput] = useState("");  
   // isLoading 상태 선언
     const [isLoading, setIsLoading] = useState(false)
   const handleStartMeeting = () => {
@@ -111,18 +111,18 @@ function Home() {
     }
   };
 
-  const getAIResponse = (input) => {
-    const lowerInput = input.toLowerCase();
-    if (lowerInput.includes("회의") || lowerInput.includes("미팅")) {
-      return '지난 회의 내역을 확인하실 수 있습니다. 아래 "최근 회의" 목록을 확인해보세요!';
-    } else if (lowerInput.includes("이슈") || lowerInput.includes("미해결")) {
-      return `현재 ${mockOpenIssues.length}개의 미해결 이슈가 있습니다. 왼쪽 카드를 확인해보세요!`;
-    } else if (lowerInput.includes("안녕") || lowerInput.includes("하이")) {
-      return "안녕하세요! 오늘도 좋은 하루 보내세요 😊";
-    } else {
-      return "질문주셔서 감사합니다! 회의, 이슈, 과거 기록 등에 대해 물어보세요.";
-    }
-  };
+  // const getAIResponse = (input) => {
+  //   const lowerInput = input.toLowerCase();
+  //   if (lowerInput.includes("회의") || lowerInput.includes("미팅")) {
+  //     return '지난 회의 내역을 확인하실 수 있습니다. 아래 "최근 회의" 목록을 확인해보세요!';
+  //   } else if (lowerInput.includes("이슈") || lowerInput.includes("미해결")) {
+  //     return `현재 ${mockOpenIssues.length}개의 미해결 이슈가 있습니다. 왼쪽 카드를 확인해보세요!`;
+  //   } else if (lowerInput.includes("안녕") || lowerInput.includes("하이")) {
+  //     return "안녕하세요! 오늘도 좋은 하루 보내세요 😊";
+  //   } else {
+  //     return "질문주셔서 감사합니다! 회의, 이슈, 과거 기록 등에 대해 물어보세요.";
+  //   }
+  // };
 
   return (
     <Box>

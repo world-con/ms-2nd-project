@@ -11,20 +11,31 @@ from azure.core.credentials import AzureKeyCredential
 
 load_dotenv()
 
+# --- [디버깅용 출력 코드 시작] ---
+print("\n🔥 [설정값 확인]")
+print(f"1. 임베딩 모델명: text-embedding-3-small") 
+print(f"2. LLM 모델명:    {os.getenv('AZURE_OPENAI_DEPLOYMENT_NAME')}")
+print(f"3. 엔드포인트:    {os.getenv('AZURE_OPENAI_ENDPOINT')}")
+print(f"4. API 키:        {os.getenv('AZURE_OPENAI_API_KEY')}")
+print("------------------------\n")
+# --- [디버깅용 출력 코드 끝] ---
+
 # 환경변수 로드
 SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT")
 SEARCH_KEY = os.getenv("AZURE_SEARCH_API_KEY")
 INDEX_NAME = os.getenv("AZURE_SEARCH_INDEX_NAME")
 
 embeddings = AzureOpenAIEmbeddings(
-    azure_deployment="text-embedding-3-small",
-    openai_api_version="AZURE_OPENAI_API_VERSION",
+    azure_deployment=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-small"),
+    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
 )
 
 # 추가 : rag_chat.py에서 가져온 GPT 모델 설정 코드
 llm = AzureChatOpenAI(
-    azure_deployment="AZURE_OPENAI_DEPLOYMENT_NAME", # 본인 배포 이름 확인 (gpt-4o)
-    openai_api_version="AZURE_OPENAI_API_VERSION",
+    azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"), # <-- 수정
+    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),   # <-- 수정
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
         # 사실 기반 답변을 위해 0으로 설정
 )
 

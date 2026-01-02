@@ -9,7 +9,7 @@ MS_CLIENT_ID = os.getenv("MS_CLIENT_ID")
 # [수정] 권한 범위에 'Tasks.ReadWrite' 추가 (할 일 접근용)
 SCOPES = ["Calendars.ReadWrite", "Tasks.ReadWrite"]
 AUTHORITY_URL = "https://login.microsoftonline.com/common"
-LOGIC_APP_URL = os.getenv("LOGIC_APP_URL_CALENDAR")
+LOGIC_APP_URL_CALENDAR = os.getenv("LOGIC_APP_URL_CALENDAR")
 
 # 최초 로그인을 진행한 후에는 자동으로 저장된 토큰을 사용하도록 설정
 CACHE_FILE = 'token_cache.bin'
@@ -62,7 +62,7 @@ def send_event_to_logic_app(event_body):
     }
 
     try:
-        res = requests.post(LOGIC_APP_URL, json=payload)
+        res = requests.post(LOGIC_APP_URL_CALENDAR, json=payload)
         if res.status_code in [200, 202]:
             return True, "성공"
         else:

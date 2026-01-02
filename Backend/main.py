@@ -38,7 +38,7 @@ app.add_middleware(
 )
 
 # --- 설정값 ---
-LOGIC_APP_URL = os.getenv("LOGIC_APP_URL_MAIL")
+LOGIC_APP_URL_MAIL = os.getenv("LOGIC_APP_URL_MAIL")
 SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT")
 SEARCH_KEY = os.getenv("AZURE_SEARCH_API_KEY")
 INDEX_NAME = os.getenv("AZURE_SEARCH_INDEX_NAME")
@@ -235,10 +235,13 @@ async def analyze_meeting(request: EmailRequest):
             return {"status": "success", "data": {"summary": "⚠️ 보안 필터가 작동했습니다."}}
         return {"status": "error", "message": str(e)}
 
-# [자동화 기능 탭] 메일 전송
+# [자동화 기능 탭] 메일 전송 (Bulk Send 최적화)
 @app.post("/api/execute-action")
 async def execute_action(request: EmailRequest):
     print("🚀 사용자 승인 완료! 메일 전송 시작...")
+    
+    # 1. 이메일 리스트를 세미콜론(;)으로 연결 (Azure Logic App 표준)
+    all_recipients = ";".join(team_members)
     
     ai_summary = request.summary_text
     formatted_summary = ai_summary.replace("\n", "<br>")
@@ -251,16 +254,21 @@ async def execute_action(request: EmailRequest):
     </div>
     """
 
-    count = 0
-    async with httpx.AsyncClient() as http_client:
-        for member in team_members:
-            try:
-                requests.post(LOGIC_APP_URL, json={"email": member, "subject": "[이음] 회의 결과 리포트", "body": html_body})
-                count += 1
-                await asyncio.sleep(0.3)
-            except: pass
+    try:
+        # 2. 반복문 삭제 -> 단 1번만 요청
+        # (주의: Logic App 디자이너에서 'email' 변수를 CC 또는 BCC에 연결해뒀어야 함!)
+        requests.post(LOGIC_APP_URL_MAIL, json={
+            "email": all_recipients, 
+            "subject": "[이음] 회의 결과 리포트 (전체 공유)", 
+            "body": html_body
+        })
+        
+        print(f"✅ 전체 발송 완료 (총 {len(team_members)}명)")
+        return {"status": "success", "sent_count": len(team_members)}
 
-    return {"status": "success", "sent_count": count}
+    except Exception as e:
+        print(f"❌ 발송 실패: {e}")
+        return {"status": "error", "message": str(e)}
 
 # [추가] Outlook Todo 생성 엔드포인트
 @app.post("/api/create-outlook-task")

@@ -196,8 +196,14 @@ async def analyze_meeting(request: EmailRequest):
         1. summary: 전체 내용을 3줄 요약 (HTML <br> 태그 사용 가능)
         2. decisions: 확정된 결정 사항 리스트 (문자열 배열)
         3. actionItems: 구체적인 할 일 리스트. 각 항목은 {"task": "할일내용", "assignee": "담당자(없으면 '미정')", "deadline": "기한(없으면 '추후 협의')", "status": "active"} 형태여야 함.
+           [중요] 다음 표현들에서 반드시 actionItem을 추출해야 함:
+           - "~하겠습니다", "~할게요", "~할 예정입니다" → 말한 사람이 담당자
+           - "~까지", "~일까지" → deadline으로 추출 (날짜 형식: YYYY-MM-DD)
+           - 예시: "[박개발] RAG 최적화를 12월 30일까지 하겠습니다" → {"task": "RAG 최적화", "assignee": "박개발", "deadline": "2025-12-30"}
         4. openIssues: 해결되지 않은 이슈 리스트. 각 항목은 {"title": "이슈명", "lastMentioned": "오늘", "owner": "관련자"} 형태.
-        5. insights: 심층 분석 객체
+        5. followUpMeeting: (있을 때만 포함) 후속 회의 일정. {"title": "회의 제목", "date": "YYYY-MM-DD", "time": "HH:MM", "attendees": ["이름1", "이름2"]} 형태.
+           [중요] "다음 회의는 1월 3일 오후 3시" 같은 표현이 있으면 반드시 추출. 참석자는 회의에 언급된 모든 사람.
+        6. insights: 심층 분석 객체
            - meetingType: 회의 성격 (예: 주간보고, 아이디어회의, 긴급점검 등)
            - sentiment: 전체 분위기 (긍정적/중립적/부정적)
            - keyTopics: 핵심 키워드 5개 이내
@@ -243,16 +249,32 @@ async def execute_action(request: EmailRequest):
     # 1. 이메일 리스트를 세미콜론(;)으로 연결 (Azure Logic App 표준)
     all_recipients = ";".join(team_members)
     
+    # 프론트엔드에서 받은 본문
     ai_summary = request.summary_text
-    formatted_summary = ai_summary.replace("\n", "<br>")
+    
+    # HTML 태그가 이미 포함되어 있는지 확인
+    if "<h" in ai_summary or "<table" in ai_summary or "<strong" in ai_summary:
+        formatted_content = ai_summary
+    else:
+        formatted_content = ai_summary.replace("\n", "<br>")
+    
+    # 줄바꿈 문자 제거 (이메일 클라이언트 호환성)
+    formatted_content = formatted_content.replace("\n", "").replace("\r", "")
 
-    html_body = f"""
-    <div style="border: 1px solid #ddd; padding: 20px;">
-        <h2>📢 AI 회의 요약</h2>
-        <hr>{formatted_summary}<hr>
-        <p>※ 관리자 승인 후 발송된 메일입니다.</p>
-    </div>
-    """
+    # HTML 한 줄로 조립
+    html_body = (
+        '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;">'
+        '<div style="background:linear-gradient(135deg,#4811BF 0%,#8C5CF2 100%);padding:20px;border-radius:8px;margin-bottom:20px;">'
+        '<h1 style="color:white;margin:0;font-size:24px;">📢 이음 AI 회의 리포트</h1>'
+        '<p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;font-size:14px;"></p>'
+        '</div>'
+        + formatted_content +
+        '<hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">'
+        '<p style="color:#718096;font-size:12px;text-align:center;">'
+        '※ 이 메일은 <strong style="color:#4811BF;">이음 AI</strong>가 자동 생성하였으며, 관리자 승인 후 발송되었습니다.'
+        '</p>'
+        '</div>'
+    )
 
     try:
         # 2. 반복문 삭제 -> 단 1번만 요청

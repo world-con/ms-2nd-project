@@ -7,6 +7,7 @@ import Meeting from "./pages/Meeting";
 import Result from "./pages/Result";
 import Upload from "./pages/Upload";
 import AppLayout from "./components/AppLayout";
+import Settings from "./components/Settings";
 
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAppContext();
@@ -66,6 +67,16 @@ function AppRoutes() {
             <ProtectedRoute>
               <AppLayout>
                 <Result />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Settings />
               </AppLayout>
             </ProtectedRoute>
           }

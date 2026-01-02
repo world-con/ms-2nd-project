@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import axios from "axios";
 import {
   Box,
@@ -208,7 +209,16 @@ function Home() {
                   maxW="70%"
                   boxShadow="sm"
                 >
-                  <Text fontSize="sm">{msg.text}</Text>
+                  {/* [수정 후] ReactMarkdown 적용 */}
+                  <Box
+                    fontSize="sm"
+                    sx={{
+                      "& p": { marginBottom: "0.5rem" }, // 문단 간격 조정
+                      "& strong": { fontWeight: "bold", color: "#4811BF" }, // **강조**된 텍스트 스타일 (보라색+굵게)
+                    }}
+                  >
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  </Box>
                   <Text
                     fontSize="xs"
                     color={
@@ -224,7 +234,9 @@ function Home() {
             {isLoading && (
               <HStack justify="flex-start">
                 <Box bg="white" px={4} py={2} borderRadius="12px">
-                  <Text fontSize="sm" color="gray.500">AI가 답변을 생각주입니다...</Text>
+                  <Text fontSize="sm" color="gray.500">
+                    이음 AI가 답변을 생각중입니다...
+                  </Text>
                 </Box>
               </HStack>
             )}
@@ -299,7 +311,9 @@ function Home() {
                 </Box>
               ))
             ) : (
-              <Text color="gray.500" fontSize="sm" py={2}>미해결 이슈가 없습니다. (RAG 데이터 없음)</Text>
+              <Text color="gray.500" fontSize="sm" py={2}>
+                미해결 이슈가 없습니다. (RAG 데이터 없음)
+              </Text>
             )}
           </VStack>
         </Card>
@@ -327,7 +341,9 @@ function Home() {
                 </HStack>
               ))
             ) : (
-              <Text color="gray.500" fontSize="sm" py={2}>추천 안건이 없습니다. (RAG 데이터 없음)</Text>
+              <Text color="gray.500" fontSize="sm" py={2}>
+                추천 안건이 없습니다. (RAG 데이터 없음)
+              </Text>
             )}
           </VStack>
 
@@ -360,7 +376,9 @@ function Home() {
                 cursor="pointer"
                 _hover={{ bg: "gray.100", transform: "translateY(-2px)" }}
                 transition="all 0.2s"
-                onClick={() => navigate("/result", { state: { meetingData: meeting } })}
+                onClick={() =>
+                  navigate("/result", { state: { meetingData: meeting } })
+                }
               >
                 <HStack justify="space-between" mb={2}>
                   <Text fontWeight="bold" fontSize="lg">
@@ -382,7 +400,8 @@ function Home() {
             ))
           ) : (
             <Text color="gray.500" py={4} textAlign="center">
-              최근 회의 기록이 없습니다. (Azure Search에서 데이터를 찾을 수 없습니다)
+              최근 회의 기록이 없습니다. (Azure Search에서 데이터를 찾을 수
+              없습니다)
             </Text>
           )}
         </VStack>

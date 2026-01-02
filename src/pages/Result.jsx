@@ -26,87 +26,105 @@ import Card from "../components/Card";
 import ApprovalCenter from "../components/ApprovalCenter";
 import { mockMeetingResult } from "../data/mockData";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function Result() {
   const [tabIndex, setTabIndex] = useState(0);
   const meeting = mockMeetingResult;
   const toast = useToast();
 
   // 회의록 다운로드 함수
-  const handleDownloadMinutes = () => {
-    const minutesContent = `
-[이음 AI 회의록]
-
-회의명: ${meeting.title}
-일시: ${meeting.date} ${meeting.startTime} - ${meeting.endTime}
-참석자: ${meeting.participants.join(", ")}
-소요시간: ${meeting.duration}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 회의 요약
-${meeting.summary}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✅ 주요 결정사항 (${meeting.decisions.length}개)
-${meeting.decisions.map((d, i) => `${i + 1}. ${d}`).join("\n")}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 TO-DO LIST (${todoList.length}개)
-${todoList
-  .map(
-    (item, i) => `
-${i + 1}. ${item.task}
-   담당자: ${item.assignee}
-   마감일: ${item.deadline}
-   상태: ${item.status === "completed" ? "완료" : "진행 중"}
-`
-  )
-  .join("\n")}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ 미해결 이슈 (${meeting.openIssues?.length || 0}개)
-${
-  meeting.openIssues
-    ?.map(
-      (issue, i) =>
-        `${i + 1}. ${issue.title} (마지막 언급: ${issue.lastMentioned})`
-    )
-    .join("\n") || "없음"
-}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💬 전체 회의록
-${meeting.transcript}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-생성일시: ${new Date().toLocaleString("ko-KR")}
-생성자: 이음 AI 회의 서비스
-    `;
-
-    const blob = new Blob([minutesContent], {
-      type: "text/plain;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `이음_회의록_${meeting.date}_${meeting.title}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
+  const handleDownloadMinutes = async () => {
+    // 1. 사용자 피드백 (로딩 토스트)
     toast({
-      title: "회의록 다운로드 완료",
-      description: "RAG 양식으로 회의록이 다운로드되었습니다.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
+        title: "회의록 생성 시작",
+        description: "AI가 템플릿(스타일)을 확인하고 내용을 작성 중입니다...",
+        status: "loading",
+        duration: null, // 처리될 때까지 유지
+        isClosable: false,
     });
+
+    try {
+        // 2. 현재 회의 데이터를 텍스트 컨텍스트로 변환 (LLM이 이해하기 좋은 형태로)
+        const summaryContext = `
+회의명: 팀 프로젝트 구체화 회의
+회의 일시: 2025년 12월 23일
+참석자: 전혜나, 김성태, 박훈용, 고영후, 박지성, 공채헌
+회의 목적: 프로젝트 구체화 작업 및 역할 분담, 개발 착수 논의
+
+1. 회의 주요 내용
+
+① 프로젝트 진행 현황
+- 팀 프로젝트의 원활한 협업을 위해 Git 초기 설정 및 사용법 공유 완료
+- 사용자 경험 개선을 위한 UI/UX 기획 진행
+- 전반적인 프로젝트 진행률은 약 20% 수준
+
+② 파트별 진행 사항
+- 프론트엔드
+    김성태: 프로젝트 전체 콘셉트 정리 및 프론트엔드 레이아웃 초안 설계
+    박훈용, 고영후: 프론트엔드 레이아웃 작업 공동 지원 및 기술 스택 검토
+- 백엔드
+    박지성: 백엔드에서 RAG 관련 로직 담당 예정
+- STT 및 운영
+    공채헌: STT 기술 위주 자료 조사 완료
+    추후 토큰 사용량 계산을 통한 운영 비용 산정 예정
+- 자동화
+    전혜나: Azure Logic App을 활용한 자동화 기능 적용 방안 검토 중
+
+③ 역할 분담(R&R)
+- 팀 전반의 R&R이 1차적으로 정리되었으며, 세부 역할은 개발 과정에서 추가 조정 예정
+- 핵심 코어 모델(Core Model) 개발 담당:
+    고영후, 박훈용, 공채헌
+
+2. 향후 계획 및 일정
+
+- 내일부터 본격적인 개발 착수
+    고영후 · 박훈용 · 공채헌: 핵심 코어 모델 개발 시작
+    박지성: 프로토타입 개발 착수
+- 개발 진행 상황에 따라 세부 기능 및 일정 지속 업데이트 예정
+        `;
+
+        // 3. 백엔드 요청
+        const response = await fetch(`${API_URL}/generate-minutes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ summary_text: summaryContext }),
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.detail || "생성 실패");
+        }
+
+        // 4. Blob 응답 처리 (파일 다운로드)
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `이음_회의록_${meeting.title}.docx`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        
+        // 5. 성공 토스트
+        toast.closeAll();
+        toast({
+            title: "다운로드 완료!",
+            description: "Custom 회의록이 생성되었습니다.",
+            status: "success",
+            duration: 3000,
+        });
+
+    } catch (error) {
+        console.error("Download Error:", error);
+        toast.closeAll();
+        toast({
+            title: "생성 실패",
+            description: "회의록 생성 중 오류가 발생했습니다.",
+            status: "error",
+            duration: 4000,
+        });
+    }
   };
 
   // TO-DO LIST 편집 저장

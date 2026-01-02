@@ -1,16 +1,17 @@
 # pip install fastapi uvicorn
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
-import shutil
-import os
+from typing import Optional
+import os, shutil, uuid
 
-# 기존에 만든 모듈 불러오기 (upload_pipeline.py, rag_engine.py, delete_manager.py)
-from upload_pipeline import upload_file_to_rag, search_client
+# 만든 모듈 불러오기 (upload_pipeline.py, rag_engine.py, delete_manager.py, meeting_doc_generator.py)
+from upload_pipeline import upload_file_to_rag, search_client, blob_service_client
 from rag_engine import ask_bot
 from delete_manager import delete_file_and_index
+from meeting_doc_generator import extract_text_with_coordinates, get_coordinates_json_from_llm, update_docx_by_coordinates
 
 app = FastAPI()
 
@@ -40,6 +41,9 @@ class ChatRequest(BaseModel):
 class DeleteRequest(BaseModel):
     filename: str
     category: str
+
+class MeetingSummaryData(BaseModel):
+    summary_text: str
 
 # ==========================================
 # 3. API 엔드포인트
@@ -174,6 +178,74 @@ def delete_endpoint(request: DeleteRequest):
         delete_file_and_index(request.filename, container_name)
         return {"status": "deleted", "filename": request.filename}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# [커스텀 회의록 파일 생성]
+@app.post("/generate-minutes")
+async def generate_minutes(data: MeetingSummaryData):
+    try:
+        # 1. 작업용 임시 폴더 생성
+        temp_dir = "temp_processing"
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # 기본 템플릿 경로 (프로젝트 루트에 default_template.docx 필수!)
+        default_template_name = "default_template.docx"
+        local_template_path = os.path.join(temp_dir, "current_template.docx")
+        
+        # 2. 템플릿 결정 로직 (Azure Blob 'style' 컨테이너 확인)
+        used_template_source = "Default"
+        try:
+            container_client = blob_service_client.get_container_client("style")
+            
+            # 컨테이너가 존재하면 파일 목록 확인
+            if container_client.exists():
+                blobs_list = list(container_client.list_blobs())
+                if blobs_list:
+                    # 가장 최근 파일 가져오기 (이름순 정렬 후 마지막 것 사용)
+                    # 실제 운영에선 created_on 속성으로 정렬 추천
+                    latest_blob = sorted(blobs_list, key=lambda b: b.name)[-1]
+                    
+                    print(f"📥 커스텀 템플릿 다운로드: {latest_blob.name}")
+                    with open(local_template_path, "wb") as f:
+                        f.write(container_client.download_blob(latest_blob.name).readall())
+                    used_template_source = "Custom (Azure Blob)"
+                else:
+                    raise Exception("스타일 컨테이너가 비어있음")
+            else:
+                raise Exception("스타일 컨테이너 없음")
+                
+        except Exception as e:
+            print(f"커스텀 템플릿 사용 불가 ({e}) -> 기본 템플릿 사용")
+            if os.path.exists(default_template_name):
+                shutil.copy(default_template_name, local_template_path)
+            else:
+                raise HTTPException(status_code=500, detail="서버에 기본 템플릿(default_template.docx)이 없습니다.")
+
+        print(f"✅ 템플릿 준비 완료: {used_template_source}")
+
+        # 3. 문서 생성 프로세스 (RAG Logic)
+        
+        # A. 템플릿 좌표 읽기
+        coords_text = extract_text_with_coordinates(local_template_path)
+        
+        # B. LLM에게 매핑 요청
+        llm_result = get_coordinates_json_from_llm(coords_text, data.summary_text)
+        
+        # C. 문서 내용 교체 및 저장
+        output_filename = f"meeting_result_{uuid.uuid4().hex[:8]}.docx"
+        output_path = os.path.join(temp_dir, output_filename)
+        
+        update_docx_by_coordinates(local_template_path, output_path, llm_result["updates"])
+        
+        # 4. 파일 반환
+        return FileResponse(
+            path=output_path,
+            filename=f"이음AI_회의록_{uuid.uuid4().hex[:4]}.docx",
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+
+    except Exception as e:
+        print(f"❌ 문서 생성 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==========================================

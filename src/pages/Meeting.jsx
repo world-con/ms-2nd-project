@@ -399,7 +399,7 @@ function Meeting() {
               {isChatLoading && (
                 <Box alignSelf="flex-start" maxW="85%">
                   <Box bg="white" color="gray.500" p={3} borderRadius="12px" boxShadow="sm">
-                    <Text fontSize="sm">AI가 답변을 생각중입니다...</Text>
+                    <Text fontSize="sm">이음 AI가 답변을 생각중입니다...</Text>
                   </Box>
                 </Box>
               )}

@@ -37,23 +37,12 @@ function Result() {
   useEffect(() => {
     const processMeeting = async () => {
       // [핵심] localStorage에서 직접 읽기 (Context보다 먼저 로드됨)
-<<<<<<< HEAD
-      let savedTranscript = localStorage.getItem("lastTranscript") || transcript;
-=======
       let savedTranscript =
         localStorage.getItem("lastTranscript") || transcript;
->>>>>>> feature/el061-작업이름
 
       // [테스트용] localStorage가 비어있으면 테스트 데이터 자동 주입
       if (!savedTranscript) {
         console.log("🧪 테스트 모드: 샘플 스크립트 주입");
-<<<<<<< HEAD
-        savedTranscript = "[김프로] 안녕하세요, 프로젝트 진행 상황 점검 회의입니다. [이기획] 프론트엔드 개발은 다음 주까지 완료하겠습니다. [박개발] RAG 최적화를 12월 30일까지 하겠습니다. [김프로] 좋습니다. 다음 회의는 1월 10일 오후 2시에 합니다.";
-        localStorage.setItem("lastTranscript", savedTranscript);
-      }
-
-      console.log("🔍 savedTranscript:", savedTranscript.substring(0, 50) + "...");
-=======
         savedTranscript =
           "[김프로] 안녕하세요, 프로젝트 진행 상황 점검 회의입니다. [이기획] 프론트엔드 개발은 다음 주까지 완료하겠습니다. [박개발] RAG 최적화를 12월 30일까지 하겠습니다. [김프로] 좋습니다. 다음 회의는 1월 10일 오후 2시에 합니다.";
         localStorage.setItem("lastTranscript", savedTranscript);
@@ -63,7 +52,6 @@ function Result() {
         "🔍 savedTranscript:",
         savedTranscript.substring(0, 50) + "..."
       );
->>>>>>> feature/el061-작업이름
 
       try {
         console.log("� API 호출 중...");
@@ -97,12 +85,6 @@ function Result() {
           console.log("📆 followUp.time:", followUp.time);
 
           // 회의 스크립트에서 참석자 이름 추출 (대괄호 안의 이름들)
-<<<<<<< HEAD
-          const extractedNames = [...new Set(
-            (savedTranscript.match(/\[([^\]]+)\]/g) || [])
-              .map(match => match.replace(/[\[\]]/g, ''))
-          )];
-=======
           const extractedNames = [
             ...new Set(
               (savedTranscript.match(/\[([^\]]+)\]/g) || []).map((match) =>
@@ -110,7 +92,6 @@ function Result() {
               )
             ),
           ];
->>>>>>> feature/el061-작업이름
 
           safeApprovalItems.push({
             id: "approval-calendar",
@@ -120,11 +101,6 @@ function Result() {
             estimatedTime: "2초",
             details: {
               title: followUp.title || "후속 회의",
-<<<<<<< HEAD
-              date: followUp.date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 기본: 1주일 후
-              time: followUp.time || "14:00",
-              attendees: followUp.attendees?.length > 0 ? followUp.attendees : extractedNames,
-=======
               date:
                 followUp.date ||
                 new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -135,25 +111,11 @@ function Result() {
                 followUp.attendees?.length > 0
                   ? followUp.attendees
                   : extractedNames,
->>>>>>> feature/el061-작업이름
             },
           });
 
           // [2] 메일 발송 카드 추가 - 이메일 최적화 HTML
           // 할 일 목록 생성
-<<<<<<< HEAD
-          let actionItemsHtml = '';
-          if (safeActionItems.length > 0) {
-            actionItemsHtml = '<h3 style="color:#4811BF;margin-top:25px;margin-bottom:15px;">📋 할 일 목록</h3>';
-            safeActionItems.forEach((item, idx) => {
-              actionItemsHtml += '<div style="background:#faf5ff;border-left:4px solid #8C5CF2;padding:12px 15px;margin-bottom:10px;border-radius:0 8px 8px 0;">';
-              actionItemsHtml += '<div style="font-weight:bold;color:#333;">' + (idx + 1) + '. ' + (item.task || '할 일') + '</div>';
-              actionItemsHtml += '<div style="margin-top:8px;font-size:14px;color:#666;">';
-              actionItemsHtml += '👤 <strong style="color:#4811BF;">' + (item.assignee || '미정') + '</strong>';
-              actionItemsHtml += ' &nbsp;|&nbsp; ';
-              actionItemsHtml += '📅 <span style="color:#e53e3e;font-weight:bold;">' + (item.deadline || '추후 협의') + '</span>';
-              actionItemsHtml += '</div></div>';
-=======
           let actionItemsHtml = "";
           if (safeActionItems.length > 0) {
             actionItemsHtml =
@@ -179,43 +141,10 @@ function Result() {
                 (item.deadline || "추후 협의") +
                 "</span>";
               actionItemsHtml += "</div></div>";
->>>>>>> feature/el061-작업이름
             });
           }
 
           // 결정사항 생성
-<<<<<<< HEAD
-          let decisionsHtml = '';
-          if (Array.isArray(aiData.decisions) && aiData.decisions.length > 0) {
-            decisionsHtml = '<h3 style="color:#4811BF;margin-top:20px;">✅ 주요 결정사항</h3>';
-            decisionsHtml += '<ul style="margin:10px 0;padding-left:20px;">';
-            aiData.decisions.forEach(d => {
-              decisionsHtml += '<li style="margin:5px 0;">' + d + '</li>';
-            });
-            decisionsHtml += '</ul>';
-          }
-
-          // 후속 회의 생성
-          let nextMeetingHtml = '';
-          if (followUp.date) {
-            const attendeesList = (followUp.attendees || extractedNames).map(name =>
-              '<strong style="color:#4811BF;">' + name + '</strong>'
-            ).join(', ');
-
-            nextMeetingHtml = '<h3 style="color:#4811BF;margin-top:20px;">📅 다음 회의</h3>';
-            nextMeetingHtml += '<div style="background:#f0f9ff;padding:15px;border-radius:8px;">';
-            nextMeetingHtml += '<strong>' + (followUp.title || '후속 회의') + '</strong><br>';
-            nextMeetingHtml += '일시: <strong style="color:#2563eb;">' + followUp.date + ' ' + (followUp.time || '') + '</strong><br>';
-            nextMeetingHtml += '참석자: ' + attendeesList;
-            nextMeetingHtml += '</div>';
-          }
-
-          // 최종 이메일 본문 조립
-          const summaryText = (aiData.summary || '').replace(/\n/g, '<br>');
-          const formattedEmailBody = '<h2 style="color:#4811BF;">📝 회의 요약</h2>' +
-            '<p style="line-height:1.8;color:#333;">' + summaryText + '</p>' +
-            decisionsHtml + actionItemsHtml + nextMeetingHtml;
-=======
           let decisionsHtml = "";
           if (Array.isArray(aiData.decisions) && aiData.decisions.length > 0) {
             decisionsHtml =
@@ -262,7 +191,6 @@ function Result() {
             decisionsHtml +
             actionItemsHtml +
             nextMeetingHtml;
->>>>>>> feature/el061-작업이름
 
           safeApprovalItems.push({
             id: "approval-email",
@@ -274,13 +202,8 @@ function Result() {
               recipients: extractedNames,
               subject: `[이음] ${followUp.title || "회의"} - 회의록`,
               preview: `안녕하세요, ${new Date().toLocaleDateString()} 진행된 회의록을 공유드립니다...`,
-<<<<<<< HEAD
               body: formattedEmailBody
             }
-=======
-              body: formattedEmailBody,
-            },
->>>>>>> feature/el061-작업이름
           });
 
           // [3] Todo 항목들을 하나의 카드로 통합
@@ -293,15 +216,6 @@ function Result() {
               estimatedTime: "2초",
               details: {
                 count: safeActionItems.length,
-<<<<<<< HEAD
-                assignees: [...new Set(safeActionItems.map(item => item.assignee || "미정"))],
-                todoItems: safeActionItems.map(item => ({
-                  task: item.task || "할 일 내용 없음",
-                  assignee: item.assignee || "미정",
-                  deadline: item.deadline || "추후 협의"
-                }))
-              }
-=======
                 assignees: [
                   ...new Set(
                     safeActionItems.map((item) => item.assignee || "미정")
@@ -311,9 +225,8 @@ function Result() {
                   task: item.task || "할 일 내용 없음",
                   assignee: item.assignee || "미정",
                   deadline: item.deadline || "추후 협의",
-                })),
-              },
->>>>>>> feature/el061-작업이름
+                }))
+              }
             });
           }
 
@@ -322,14 +235,6 @@ function Result() {
             id: "approval-report",
             type: "report",
             title: "자동 보고",
-<<<<<<< HEAD
-            description: "회의록과 심층 분석 내용을 상사에게 자동으로 보고합니다",
-            estimatedTime: "3초",
-            details: {
-              recipient: "김사장 (상사)",
-              contents: ["회의록 요약", "심층 분석", "리스크 분석", "AI 추천사항"]
-            }
-=======
             description:
               "회의록과 심층 분석 내용을 상사에게 자동으로 보고합니다",
             estimatedTime: "3초",
@@ -342,7 +247,6 @@ function Result() {
                 "AI 추천사항",
               ],
             },
->>>>>>> feature/el061-작업이름
           });
 
           console.log("📋 생성된 approvalItems:", safeApprovalItems);

@@ -9,7 +9,7 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
-        // rewrite: (path) => path.replace(/^\/api/, ''), // main.py에 /api prefix가 없으면 이거 활성화 필요. 현재 main.py 확인 필요.
+        rewrite: (path) => path.replace(/^\/api/, ''), // main.py에 /api prefix가 없으면 이거 활성화 필요.
       },
     },
   },

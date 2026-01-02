@@ -6,7 +6,7 @@ from openai import AzureOpenAI
 
 # 모듈 import 
 import outlook_service 
-import rag_service
+import rag_engine as rag_service
 
 load_dotenv()
 
@@ -63,7 +63,7 @@ tools = [
 # 메인 로직
 # --------------------------------------
 
-def process_chat_request(user_message):
+def process_chat_request(user_message, category="all"):
     """React에서 온 메시지를 처리하고 응답을 반환"""
     today = datetime.now().strftime("%Y-%m-%d")
     
@@ -155,8 +155,8 @@ def process_chat_request(user_message):
                     query = args.get("query")
                     print(f"🔍 DB 검색 수행: {query}")
                     
-                    # 변경 : 기존 ask_bot 함수를 호출
-                    answer = rag_service.ask_bot(user_message)
+                    # be2_rag 기준: rag_engine의 ask_bot 호출 (LLM이 정제한 query 전달)
+                    answer = rag_service.ask_bot(query, target_category=category)
 
                     return answer
             # else:

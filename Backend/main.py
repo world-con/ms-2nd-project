@@ -266,7 +266,7 @@ async def execute_action(request: EmailRequest):
         '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;">'
         '<div style="background:linear-gradient(135deg,#4811BF 0%,#8C5CF2 100%);padding:20px;border-radius:8px;margin-bottom:20px;">'
         '<h1 style="color:white;margin:0;font-size:24px;">📢 이음 AI 회의 리포트</h1>'
-        '<p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;font-size:14px;">자동 생성된 회의록입니다</p>'
+        '<p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;font-size:14px;"></p>'
         '</div>'
         + formatted_content +
         '<hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">'

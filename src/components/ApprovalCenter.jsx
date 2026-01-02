@@ -44,6 +44,14 @@ function ApprovalCenter({ approvalItems: initialItems }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
+  // [수정] props가 변경되면 state 업데이트 (AI 응답 데이터 반영)
+  React.useEffect(() => {
+    if (initialItems && initialItems.length > 0) {
+      console.log("🔄 ApprovalCenter: props 업데이트 감지", initialItems);
+      setApprovalItems(initialItems);
+    }
+  }, [initialItems]);
+
   const handleCheckboxChange = (id) => {
     setSelectedItems((prev) => ({
       ...prev,

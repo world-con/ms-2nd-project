@@ -1,12 +1,10 @@
-# pip install fastapi uvicorn
-
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import os, shutil, uuid
-
+from datetime import timedelta, datetime
 # 만든 모듈 불러오기 (upload_pipeline.py, rag_engine.py, delete_manager.py, meeting_doc_generator.py)
 from upload_pipeline import upload_file_to_rag, search_client, blob_service_client
 from rag_engine import ask_bot, analyze_meeting_script
@@ -191,7 +189,7 @@ async def upload_file(
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
         except Exception as e:
-             raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(e)}")
 
         # 4. RAG 파이프라인 실행
         container_name = target_category    # 컨테이너 이름도 카테고리와 동일하게 사용

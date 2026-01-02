@@ -146,7 +146,7 @@ function Home() {
   return (
     <Box>
       <Heading size="xl" mb={6}>
-        안녕하세요, 김프로님 👋
+        안녕하세요, 카리나님 👋
       </Heading>
 
       {/* 회의 시작 버튼 */}

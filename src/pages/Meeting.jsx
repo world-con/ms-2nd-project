@@ -52,6 +52,7 @@ function Meeting() {
     },
   ]);
   const [aiInput, setAiInput] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   // --- [1] 페이지 로드 시 Azure 녹음기 시동 ---
   useEffect(() => {
@@ -173,10 +174,10 @@ function Meeting() {
     }
   };
 
-  const handleAiSend = () => {
+  const handleAiSend = async () => {
     if (!aiInput.trim()) return;
 
-    const newMessage = {
+    const userMessage = {
       type: "user",
       text: aiInput,
       time: new Date().toLocaleTimeString("ko-KR", {
@@ -185,36 +186,45 @@ function Meeting() {
       }),
     };
 
-    setAiMessages((prev) => [...prev, newMessage]);
-
-    // AI 응답 시뮬레이션 (Home.jsx의 채팅과 동일하게 백엔드 연결 가능)
-    setTimeout(() => {
-      let aiResponse = "";
-      if (aiInput.includes("회의") || aiInput.includes("지난")) {
-        aiResponse =
-          "지난 회의는 2025-12-20에 진행되었고, RAG 구현과 프론트엔드 개발이 주요 안건이었습니다.";
-      } else if (aiInput.includes("이슈") || aiInput.includes("문제")) {
-        aiResponse =
-          '현재 미해결 이슈는 "Outlook API 연동"과 "STT 정확도 개선"입니다.';
-      } else {
-        aiResponse =
-          "네, 무엇을 도와드릴까요? 회의 내용이나 과거 기록에 대해 질문해주세요.";
-      }
-
-      setAiMessages((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          text: aiResponse,
-          time: new Date().toLocaleTimeString("ko-KR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        },
-      ]);
-    }, 500);
-
+    setAiMessages((prev) => [...prev, userMessage]);
+    const currentInput = aiInput;
     setAiInput("");
+    setIsChatLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: currentInput }),
+      });
+
+      if (!response.ok) throw new Error("서버 응답 에러");
+
+      const data = await response.json();
+
+      const aiResponse = {
+        type: "ai",
+        text: data.answer,
+        time: new Date().toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setAiMessages((prev) => [...prev, aiResponse]);
+    } catch (error) {
+      console.error("Chat Error:", error);
+      const errorMessage = {
+        type: "ai",
+        text: "죄송합니다. 서버 연결에 실패했습니다. (백엔드가 켜져있나요?)",
+        time: new Date().toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setAiMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   if (isProcessing) {
@@ -386,6 +396,13 @@ function Meeting() {
                   </Text>
                 </Box>
               ))}
+              {isChatLoading && (
+                <Box alignSelf="flex-start" maxW="85%">
+                  <Box bg="white" color="gray.500" p={3} borderRadius="12px" boxShadow="sm">
+                    <Text fontSize="sm">AI가 답변을 생각중입니다...</Text>
+                  </Box>
+                </Box>
+              )}
             </VStack>
           </Box>
 
@@ -397,12 +414,14 @@ function Meeting() {
               onChange={(e) => setAiInput(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleAiSend()}
               size="sm"
+              disabled={isChatLoading}
             />
             <Button
               colorScheme="primary"
               size="sm"
               leftIcon={<FiSend />}
               onClick={handleAiSend}
+              isLoading={isChatLoading}
             >
               전송
             </Button>

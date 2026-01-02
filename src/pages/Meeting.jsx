@@ -17,6 +17,8 @@ import { FiMic, FiSquare, FiPause, FiPlay, FiSend } from "react-icons/fi";
 import Card from "../components/Card";
 import { useAppContext } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const pulse = keyframes`
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.2); opacity: 0.8; }
@@ -38,7 +40,7 @@ function Meeting() {
     {
       type: "ai",
       text: "회의 중 궁금한 점이 있으면 물어보세요!",
-      time: "14:35",
+      time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
   const [aiInput, setAiInput] = useState("");
@@ -101,48 +103,44 @@ function Meeting() {
     }, 2000);
   };
 
-  const handleAiSend = () => {
+  const handleAiSend = async () => {
     if (!aiInput.trim()) return;
 
-    const newMessage = {
-      type: "user",
-      text: aiInput,
-      time: new Date().toLocaleTimeString("ko-KR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
+    // 1. 사용자 메시지 표시
+    const userMessage = { type: "user", text: aiInput, time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) };
+    setAiMessages((prev) => [...prev, userMessage]);
+    setAiInput(""); // 입력창 비우기
 
-    setAiMessages((prev) => [...prev, newMessage]);
+    // 2. 백엔드로 질문 전송
+    try {
+      const response = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMessage.text,
+          category: "all"
+        }),
+      });
 
-    // AI 응답 시뮬레이션
-    setTimeout(() => {
-      let aiResponse = "";
-      if (aiInput.includes("회의") || aiInput.includes("지난")) {
-        aiResponse =
-          "지난 회의는 2025-12-20에 진행되었고, RAG 구현과 프론트엔드 개발이 주요 안건이었습니다.";
-      } else if (aiInput.includes("이슈") || aiInput.includes("문제")) {
-        aiResponse =
-          '현재 미해결 이슈는 "Outlook API 연동"과 "STT 정확도 개선"입니다.';
-      } else {
-        aiResponse =
-          "네, 무엇을 도와드릴까요? 회의 내용이나 과거 기록에 대해 질문해주세요.";
-      }
+      const data = await response.json();
 
+      // 3. AI 응답 표시
       setAiMessages((prev) => [
         ...prev,
         {
           type: "ai",
-          text: aiResponse,
-          time: new Date().toLocaleTimeString("ko-KR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          text: data.response,
+          time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
-    }, 500);
 
-    setAiInput("");
+    } catch (error) {
+      console.error("Chat Error:", error);
+      setAiMessages((prev) => [
+        ...prev,
+        { type: "ai", text: "서버에 문제가 발생했습니다. 관리자에게 문의 바랍니다.", time: "..." },
+      ]);
+    }
   };
 
   if (isProcessing) {

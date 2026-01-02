@@ -29,6 +29,8 @@ import {
 } from "../data/mockData";
 import { useAppContext } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function Home() {
   const navigate = useNavigate();
   const { startMeeting } = useAppContext();
@@ -37,7 +39,7 @@ function Home() {
       id: 1,
       sender: "ai",
       text: "안녕하세요! 이음 AI 비서입니다. 무엇을 도와드릴까요? 😊",
-      time: "10:30",
+      time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -56,48 +58,47 @@ function Home() {
     navigate("/meeting");
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (chatInput.trim() === "") return;
 
-    // 사용자 메시지 추가
+    // 1. 사용자 메시지 UI 추가
     const userMessage = {
       id: Date.now(),
       sender: "user",
       text: chatInput,
-      time: new Date().toLocaleTimeString("ko-KR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
     };
     setChatMessages([...chatMessages, userMessage]);
+    setChatInput("");
 
-    // AI 응답 시뮬레이션
-    setTimeout(() => {
+    // 2. 백엔드 호출
+    try {
+      const response = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: chatInput,
+          category: "all"
+        }),
+      });
+      
+      const data = await response.json();
+
+      // 3. AI 응답 UI 추가
       const aiResponse = {
         id: Date.now() + 1,
         sender: "ai",
-        text: getAIResponse(chatInput),
-        time: new Date().toLocaleTimeString("ko-KR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        text: data.response,
+        time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
       };
-      setChatMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+      setChatMessages(prev => [...prev, aiResponse]);
 
-    setChatInput("");
-  };
-
-  const getAIResponse = (input) => {
-    const lowerInput = input.toLowerCase();
-    if (lowerInput.includes("회의") || lowerInput.includes("미팅")) {
-      return '지난 회의 내역을 확인하실 수 있습니다. 아래 "최근 회의" 목록을 확인해보세요!';
-    } else if (lowerInput.includes("이슈") || lowerInput.includes("미해결")) {
-      return `현재 ${mockOpenIssues.length}개의 미해결 이슈가 있습니다. 왼쪽 카드를 확인해보세요!`;
-    } else if (lowerInput.includes("안녕") || lowerInput.includes("하이")) {
-      return "안녕하세요! 오늘도 좋은 하루 보내세요 😊";
-    } else {
-      return "질문주셔서 감사합니다! 회의, 이슈, 과거 기록 등에 대해 물어보세요.";
+    } catch (error) {
+      console.error("Chat Error:", error);
+      setChatMessages((prev) => [
+        ...prev,
+        { type: "ai", text: "서버에 문제가 발생했습니다. 관리자에게 문의 바랍니다.", time: "..." },
+      ]);
     }
   };
 

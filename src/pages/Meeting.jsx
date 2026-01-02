@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   Box,
   Heading,
@@ -67,7 +68,7 @@ function Meeting() {
       if (!SPEECH_KEY || SPEECH_KEY.includes("your_key_here")) {
         console.warn("⚠️ Azure Speech Key가 설정되지 않았습니다.");
         // 여기서 return 하면 시뮬레이션 모드라도 돌릴 수 있게 할지는 선택
-        // return; 
+        // return;
       }
 
       const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
@@ -83,7 +84,9 @@ function Meeting() {
       recognizer.recognized = (s, e) => {
         if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
           console.log("인식됨:", e.result.text);
-          setLocalTranscript((prev) => prev + (prev ? "\n" : "") + e.result.text);
+          setLocalTranscript(
+            (prev) => prev + (prev ? "\n" : "") + e.result.text
+          );
         }
       };
 
@@ -162,7 +165,9 @@ function Meeting() {
       });
     } else {
       // 혹시 녹음기가 안 켜졌을 경우 대비
-      console.warn("녹음기가 초기화되지 않았습니다. 로컬 내용을 저장 후 이동합니다.");
+      console.warn(
+        "녹음기가 초기화되지 않았습니다. 로컬 내용을 저장 후 이동합니다."
+      );
       if (localTranscript) {
         setTranscript(localTranscript);
         localStorage.setItem("lastTranscript", localTranscript);
@@ -384,7 +389,21 @@ function Meeting() {
                     borderRadius="12px"
                     boxShadow="sm"
                   >
-                    <Text fontSize="sm">{msg.text}</Text>
+                    <Box
+                      fontSize="sm"
+                      sx={{
+                        "& p": { marginBottom: "0.5rem" },
+                        "& strong": {
+                          fontWeight: "bold",
+                          // 유저 메시지면 흰색 유지, AI 메시지면 보라색 포인트
+                          color: msg.type === "user" ? "white" : "#4811BF",
+                        },
+                        "& ul": { paddingLeft: "1.2rem" },
+                        "& li": { marginBottom: "0.2rem" },
+                      }}
+                    >
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </Box>
                   </Box>
                   <Text
                     fontSize="xs"
@@ -398,7 +417,13 @@ function Meeting() {
               ))}
               {isChatLoading && (
                 <Box alignSelf="flex-start" maxW="85%">
-                  <Box bg="white" color="gray.500" p={3} borderRadius="12px" boxShadow="sm">
+                  <Box
+                    bg="white"
+                    color="gray.500"
+                    p={3}
+                    borderRadius="12px"
+                    boxShadow="sm"
+                  >
                     <Text fontSize="sm">이음 AI가 답변을 생각중입니다...</Text>
                   </Box>
                 </Box>

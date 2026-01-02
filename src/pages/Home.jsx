@@ -26,6 +26,8 @@ import {
 import Card from "../components/Card";
 import { useAppContext } from "../context/AppContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function Home() {
   const navigate = useNavigate();
   const { startMeeting } = useAppContext();
@@ -40,7 +42,7 @@ function Home() {
       id: 1,
       sender: "ai",
       text: "안녕하세요! 이음 AI 비서입니다. 무엇을 도와드릴까요? 😊",
-      time: "10:30",
+      time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -86,56 +88,51 @@ function Home() {
 
   // --- [2] AI 비서 채팅 (Real Chat) ---
   const handleSendMessage = async () => {
-    if (chatInput.trim() === "") return;
+    if (chatInput.trim() === "" || isLoading) return;
 
-    // 사용자 메시지 추가
+    // 1. 사용자 메시지 UI 추가
     const userMessage = {
       id: Date.now(),
       sender: "user",
       text: chatInput,
-      time: new Date().toLocaleTimeString("ko-KR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
     };
-    setChatMessages([...chatMessages, userMessage]);
-    setChatInput(""); // 입력창 초기화 먼저
 
+    setChatMessages(prev => [...prev, userMessage]);
+    const currentInput = chatInput;
+    setChatInput("");
     setIsLoading(true);
 
+    // 2. 백엔드 호출
     try {
-      // Python 백엔드(FastAPI)로 전송
-      const response = await fetch("http://localhost:8000/api/chat", {
+      const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage.text }),
+        body: JSON.stringify({
+          message: currentInput,
+          category: "all"
+        }),
       });
 
       if (!response.ok) throw new Error("서버 응답 에러");
-
       const data = await response.json();
 
-      // AI 응답 화면 표시
+      // 3. AI 응답 UI 추가
       const aiResponse = {
         id: Date.now() + 1,
         sender: "ai",
-        text: data.answer,
-        time: new Date().toLocaleTimeString("ko-KR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        text: data.response || data.answer, // 백엔드 키값 호환성 유지
+        time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
       };
-      setChatMessages((prev) => [...prev, aiResponse]);
+      setChatMessages(prev => [...prev, aiResponse]);
+
     } catch (error) {
       console.error("Chat Error:", error);
       const errorMessage = {
         id: Date.now() + 1,
         sender: "ai",
-        text: "죄송합니다. 서버 연결에 실패했습니다. (백엔드가 켜져있나요?)",
-        time: new Date().toLocaleTimeString("ko-KR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        text: "죄송합니다. 서버 연결에 실패했습니다. 백엔드 상태를 확인해주세요.",
+        time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
       };
       setChatMessages((prev) => [...prev, errorMessage]);
     } finally {

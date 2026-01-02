@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+
 import {
   Box,
   Heading,
@@ -20,6 +22,8 @@ import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 // ▼▼▼ Azure 키 설정 (나중엔 .env로 빼세요) ▼▼▼
 const SPEECH_KEY = import.meta.env.VITE_SPEECH_KEY;
 const SPEECH_REGION = import.meta.env.VITE_SPEECH_REGION;
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const pulse = keyframes`
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -48,7 +52,7 @@ function Meeting() {
     {
       type: "ai",
       text: "회의 중 궁금한 점이 있으면 물어보세요!",
-      time: "14:35",
+      time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
   const [aiInput, setAiInput] = useState("");
@@ -176,7 +180,6 @@ function Meeting() {
 
   const handleAiSend = async () => {
     if (!aiInput.trim()) return;
-
     const userMessage = {
       type: "user",
       text: aiInput,
@@ -192,10 +195,13 @@ function Meeting() {
     setIsChatLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/chat", {
+      const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: currentInput }),
+        body: JSON.stringify({
+          message: currentInput,
+          category: "all"
+        }),
       });
 
       if (!response.ok) throw new Error("서버 응답 에러");
@@ -204,7 +210,7 @@ function Meeting() {
 
       const aiResponse = {
         type: "ai",
-        text: data.answer,
+        text: data.response || data.answer,
         time: new Date().toLocaleTimeString("ko-KR", {
           hour: "2-digit",
           minute: "2-digit",
@@ -215,7 +221,7 @@ function Meeting() {
       console.error("Chat Error:", error);
       const errorMessage = {
         type: "ai",
-        text: "죄송합니다. 서버 연결에 실패했습니다. (백엔드가 켜져있나요?)",
+        text: "죄송합니다. 서버 연결에 실패했습니다. 백엔드 상태를 확인해주세요.",
         time: new Date().toLocaleTimeString("ko-KR", {
           hour: "2-digit",
           minute: "2-digit",
@@ -384,7 +390,21 @@ function Meeting() {
                     borderRadius="12px"
                     boxShadow="sm"
                   >
-                    <Text fontSize="sm">{msg.text}</Text>
+                    <Box
+                                            fontSize="sm"
+                                            sx={{
+                                                "& p": { marginBottom: "0.5rem" },
+                                                "& strong": {
+                                                    fontWeight: "bold",
+                                                    // 유저 메시지면 흰색 유지, AI 메시지면 보라색 포인트
+                                                    color: msg.type === "user" ? "white" : "#4811BF",
+                                                },
+                                                "& ul": { paddingLeft: "1.2rem" },
+                                                "& li": { marginBottom: "0.2rem" },
+                                            }}
+                                        >
+                                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                        </Box>
                   </Box>
                   <Text
                     fontSize="xs"

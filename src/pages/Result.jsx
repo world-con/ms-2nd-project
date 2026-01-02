@@ -14,14 +14,17 @@ import {
   Divider,
   Button,
   Spinner,
+  SimpleGrid,
   useToast,
 } from "@chakra-ui/react";
-import { FiFileText, FiTrendingUp, FiCheckCircle } from "react-icons/fi";
+import { FiFileText,FiTrendingUp, FiCheckCircle, FiDownload } from "react-icons/fi";
 import Card from "../components/Card";
 import ApprovalCenter from "../components/ApprovalCenter";
 import { mockMeetingResult } from "../data/mockData";
 import axios from "axios";
 import { useAppContext } from "../context/AppContext";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 function Result() {
   // 1. 필수 상태 변수들
@@ -54,8 +57,8 @@ function Result() {
       );
 
       try {
-        console.log("� API 호출 중...");
-        const response = await axios.post("/api/analyze-meeting", {
+        console.log(" API 호출 중...");
+        const response = await axios.post(`${API_URL}/analyze-meeting`, {
           summary_text: savedTranscript,
         });
 
@@ -312,17 +315,144 @@ function Result() {
     }
     try {
       // ApprovalCenter 내부에서 로딩을 관리하므로 여기선 상태 변경 X
-      const response = await axios.post("/api/execute-action", {
+      const response = await axios.post(`${API_URL}/execute-action`, {
         summary_text: realSummary,
       });
       if (response.data.status === "success") {
         console.log("메일 발송 성공");
+        return true;
       }
     } catch (error) {
-      console.error(error);
+      console.error("메일 발송 에러:", error);
       throw error; // 에러를 던져야 자식 컴포넌트가 실패 처리를 함
     }
   };
+  
+    // 회의록 다운로드 함수 (Merged from be2_rag)
+    const handleDownloadMinutes = async () => {
+        // 1. 사용자 피드백 (로딩 토스트)
+        toast({
+            title: "회의록 생성 시작",
+            description: "AI가 템플릿(스타일)을 확인하고 내용을 작성 중입니다...",
+            status: "loading",
+            duration: null, // 처리될 때까지 유지
+            isClosable: false,
+        });
+
+        try {
+            // 2. 현재 회의 데이터를 텍스트 컨텍스트로 변환 (LLM이 이해하기 좋은 형태로)
+            const summaryContext = `
+회의명: ${resultData.title || "팀 프로젝트 회의"}
+회의 일시: ${resultData.date || new Date().toLocaleDateString()}
+참석자: ${resultData.approvalItems?.[0]?.details?.recipients?.join(", ") || "참석자"}
+회의 목적: 프로젝트 구체화 작업 및 역할 분담, 개발 착수 논의
+
+1. 회의 주요 내용
+${realSummary || resultData.summary}
+
+2. 향후 계획 및 일정
+${resultData.actionItems?.map(item => `- ${item.task} (${item.assignee})`).join("\n") || "없음"}
+        `;
+
+            // 3. 백엔드 요청
+            const response = await fetch(`${API_URL}/generate-minutes`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ summary_text: summaryContext }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.detail || "생성 실패");
+            }
+
+            // 4. Blob 응답 처리 (파일 다운로드)
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            // Use resultData.title for filename
+            link.setAttribute("download", `이음_회의록_${resultData.title}.docx`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+
+            // 5. 성공 토스트
+            toast.closeAll();
+            toast({
+                title: "다운로드 완료!",
+                description: "Custom 회의록이 생성되었습니다.",
+                status: "success",
+                duration: 3000,
+            });
+
+        } catch (error) {
+            console.error("Download Error:", error);
+            toast.closeAll();
+            toast({
+                title: "생성 실패",
+                description: "회의록 생성 중 오류가 발생했습니다.",
+                status: "error",
+                duration: 4000,
+            });
+        }
+    };
+
+    // TO-DO LIST 편집 저장
+    const handleSaveTodoList = () => {
+        setTodoList([...editedTodoList]);
+        setIsEditingTodo(false);
+        toast({
+            title: "TO-DO LIST 저장 완료",
+            description: "변경사항이 저장되었습니다.",
+            status: "success",
+            duration: 2000,
+            isClosable: true,
+        });
+    };
+
+    // TO-DO LIST 편집 취소
+    const handleCancelTodoEdit = () => {
+        setEditedTodoList([...todoList]);
+        setIsEditingTodo(false);
+    };
+
+    // TO-DO 항목 수정
+    const handleTodoChange = (index, field, value) => {
+        const updated = [...editedTodoList];
+        updated[index] = { ...updated[index], [field]: value };
+        setEditedTodoList(updated);
+    };
+
+    // TO-DO 항목 추가
+    const handleAddTodo = () => {
+        setEditedTodoList([
+            ...editedTodoList,
+            {
+                task: "새 작업",
+                assignee: "담당자",
+                deadline: "2025-12-31",
+                status: "pending",
+            },
+        ]);
+    };
+
+    // TO-DO 항목 삭제
+    const handleDeleteTodo = (index) => {
+        const updated = editedTodoList.filter((_, i) => i !== index);
+        setEditedTodoList(updated);
+    };
+
+    // TO-DO LIST 메일 발송
+    const handleSendTodoEmail = () => {
+        toast({
+            title: "TO-DO LIST 메일 발송",
+            description: "TO-DO LIST가 담당자들에게 메일로 발송되었습니다.",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+        });
+    };
 
   // 4. 화면 렌더링
   return (
@@ -330,9 +460,27 @@ function Result() {
       {/* 헤더 */}
       <Card mb={6} bg="linear-gradient(135deg, #4811BF 0%, #8C5CF2 100%)">
         <VStack align="stretch" spacing={3}>
+          <HStack justify="space-between">
           <Heading size="lg" color="white">
             {resultData.title}
           </Heading>
+          <Button
+            leftIcon={<FiDownload />}
+            colorScheme="whiteAlpha"
+            variant="solid"
+            onClick={handleDownloadMinutes}
+            size="lg"
+            px={12}
+            py={8}
+            fontSize="lg"
+            fontWeight="bold"
+            height="60px"
+            _hover={{ transform: "scale(0.9)", boxShadow: "lg" }}
+            transition="all 0.2s"
+          >
+              RAG Custom 회의록
+            </Button>
+          </HStack>
           <HStack fontSize="sm" color="whiteAlpha.900">
             <Text>{resultData.date}</Text>
             <Text>·</Text>
@@ -425,8 +573,10 @@ function Result() {
                 <VStack align="stretch">
                   {resultData.insights.risks.map((risk, i) => (
                     <Box key={i} p={3} bg="red.50" borderRadius="8px">
-                      <Text fontWeight="bold">{risk.level.toUpperCase()}</Text>
-                      <Text>{risk.description}</Text>
+                                                                  <Text fontWeight="bold">{risk.level.toUpperCase()}</Text>
+                                                                  <Text>{risk.description}</Text>
+                      {/* <Text fontWeight="bold">{(risk.level || 'MEDIUM').toUpperCase()}</Text>
+                      <Text>{risk.description || (typeof risk === 'string' ? risk : '상세 내용 없음')}</Text> */}
                     </Box>
                   ))}
                 </VStack>

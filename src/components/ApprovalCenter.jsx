@@ -34,6 +34,8 @@ import {
 } from "react-icons/fi";
 import Card from "./Card";
 
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+
 function ApprovalCenter({ approvalItems: initialItems }) {
   const [approvalItems, setApprovalItems] = useState(initialItems);
   const [selectedItems, setSelectedItems] = useState({});
@@ -79,24 +81,31 @@ function ApprovalCenter({ approvalItems: initialItems }) {
     onClose();
   };
 
-  // 자동보고 실행
-  const handleAutoReport = () => {
-    toast({
-      title: "자동 보고 발송 중...",
-      description: "회의록과 심층 분석 내용을 BOSS에게 보고하고 있습니다.",
-      status: "info",
-      duration: 2000,
-    });
+  // 자동보고 실행 (백엔드 연동)
+  const handleAutoReport = async (item) => {
+    try {
+      const response = await fetch(`${API_URL}/execute-action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          summary_text: `[자동 보고] ${item.details?.recipient || "보고서"}\n내용: ${item.description}`
+        }),
+      });
 
-    setTimeout(() => {
+      if (!response.ok) throw new Error("보고서 발송 실패");
+
       toast({
         title: "자동 보고 완료! 📧",
-        description: "BOSS에게 회의 보고 메일이 성공적으로 발송되었습니다.",
+        description: `${item.details?.recipient || "상사"}에게 회의 보고 메일이 성공적으로 발송되었습니다.`,
         status: "success",
         duration: 4000,
         isClosable: true,
       });
-    }, 2000);
+      return true;
+    } catch (error) {
+      console.error("Auto Report Error:", error);
+      throw error;
+    }
   };
 
   const handleApprove = async () => {
@@ -134,7 +143,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
         try {
           // [CASE A] 캘린더 일정 등록 (1번 코드 로직)
           if (item.type === 'calendar' && item.details) {
-            const response = await fetch('http://localhost:8000/api/approve-calendar', {
+            const response = await fetch(`${API_URL}/approve-calendar`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -157,7 +166,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
           // [CASE B] 이메일 발송 (2번 코드 로직)
           else if (item.type === 'email') {
             // 백엔드(/api/execute-action) 호출
-            const response = await fetch('http://localhost:8000/api/execute-action', {
+            const response = await fetch(`${API_URL}/execute-action`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -185,7 +194,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                 const taskTitle = `${todo.task} - ${todo.assignee}`
                 const taskContent = `원래 요청 항목: ${item.title}\n설명: ${item.description}`
 
-                const response = await fetch('http://localhost:8000/api/create-outlook-task', {
+                const response = await fetch(`${API_URL}/create-outlook-task`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -208,7 +217,7 @@ function ApprovalCenter({ approvalItems: initialItems }) {
 
             } else {
               // 세부 항목이 없는 경우 기존 방식대로 통으로 등록 (fallback)
-              const response = await fetch('http://localhost:8000/api/create-outlook-task', {
+              const response = await fetch(`${API_URL}/create-outlook-task`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -222,6 +231,11 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                 throw new Error(err.detail || 'Todo 생성 실패');
               }
             }
+          }
+
+          // [CASE D] 자동 보고 발송
+          else if (item.type === 'report') {
+            await handleAutoReport(item);
           }
 
           // 성공 처리
@@ -457,7 +471,11 @@ function ApprovalCenter({ approvalItems: initialItems }) {
                         </HStack>
                         <HStack>
                           <Text fontWeight="bold">참석자:</Text>
-                          <Text>{item.details.attendees.join(", ")}</Text>
+                          <Text>
+                            {Array.isArray(item.details.attendees)
+                              ? item.details.attendees.join(", ")
+                              : (typeof item.details.attendees === 'string' ? item.details.attendees : "참석자 정보 없음")}
+                          </Text>
                         </HStack>
                       </VStack>
                     )}

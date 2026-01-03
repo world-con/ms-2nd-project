@@ -25,7 +25,7 @@ import axios from "axios";
 import { useAppContext } from "../context/AppContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
-
+// const logoUrl = "https://ieumlogo.blob.core.windows.net/logos/ieum.jpg"
 function Result() {
   // 1. 필수 상태 변수들
   const [tabIndex, setTabIndex] = useState(0);
@@ -122,10 +122,10 @@ function Result() {
           let actionItemsHtml = "";
           if (safeActionItems.length > 0) {
             actionItemsHtml =
-              '<h3 style="color:#4811BF;margin-top:25px;margin-bottom:15px;">📋 할 일 목록</h3>';
+              '<h3 style="color:#4811BF;margin-top:30px;margin-bottom:15px;">📋 할 일 목록</h3>';
             safeActionItems.forEach((item, idx) => {
               actionItemsHtml +=
-                '<div style="background:#faf5ff;border-left:4px solid #8C5CF2;padding:12px 15px;margin-bottom:10px;border-radius:0 8px 8px 0;">';
+                '<div style="background:#faf5ff;border-left:4px solid #8C5CF2;padding:12px 15px;margin-bottom:20px;border-radius:0 8px 8px 0;">';
               actionItemsHtml +=
                 '<div style="font-weight:bold;color:#333;">' +
                 (idx + 1) +
@@ -154,7 +154,7 @@ function Result() {
               '<h3 style="color:#4811BF;margin-top:20px;">✅ 주요 결정사항</h3>';
             decisionsHtml += '<ul style="margin:10px 0;padding-left:20px;">';
             aiData.decisions.forEach((d) => {
-              decisionsHtml += '<li style="margin:5px 0;">' + d + "</li>";
+              decisionsHtml += '<li style="margin:10px 0;">' + d + "</li>";
             });
             decisionsHtml += "</ul>";
           }
@@ -169,7 +169,7 @@ function Result() {
               .join(", ");
 
             nextMeetingHtml =
-              '<h3 style="color:#4811BF;margin-top:20px;">📅 다음 회의</h3>';
+              '<h3 style="color:#4811BF;margin-top:30px;">📅 다음 회의</h3>';
             nextMeetingHtml +=
               '<div style="background:#f0f9ff;padding:15px;border-radius:8px;">';
             nextMeetingHtml +=
@@ -191,10 +191,22 @@ function Result() {
             '<p style="line-height:1.8;color:#333;">' +
             summaryText +
             "</p>" +
+            '<br><div style="height:1px; background-color:#eee; margin: 20px 0;"></div><br>' +
             decisionsHtml +
+            // [추가] 내용이 있을 때만 줄바꿈 (decisionsHtml이 빈 문자열이 아닐 경우)
+            (decisionsHtml ? "<br><br>" : "") +
             actionItemsHtml +
-            nextMeetingHtml;
-
+            (actionItemsHtml ? "<br><br>" : "") +
+            nextMeetingHtml +
+            // '<div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 30px; text-align: center;">' +
+            //   // 변수 연결을 빼고 URL을 직접 넣어서 오류 가능성을 0%로 만듭니다.
+            //   '<img src="https://ieumlogo.blob.core.windows.net/logos/ieum.jpg" alt="IEUM Logo" width="120" style="width: 120px; height: auto; display: inline-block; border: 0;" />' +
+              
+            //   '<p style="color: #a0aec0; font-size: 12px; margin-top: 10px; font-family: sans-serif;">' +
+            //     'AI Meeting Service, <strong>이음</strong><br>' +
+            //     '본 메일은 이음 AI에 의해 자동으로 작성되었습니다.' +
+            //   '</p>' +
+            // '</div>';
           safeApprovalItems.push({
             id: "approval-email",
             type: "email",

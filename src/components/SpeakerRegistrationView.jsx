@@ -17,7 +17,8 @@ const SpeakerRegistrationView = () => {
     const {
         handleRegisterSpeaker,
         handleStartRecording,
-        backendStatus
+        backendStatus,
+        setFlowState // [NEW] Add setFlowState for back navigation
     } = useAppContext();
 
     const [speakers, setSpeakers] = useState([
@@ -76,11 +77,20 @@ const SpeakerRegistrationView = () => {
 
     const hasAnyRegistered = speakers.some(s => s.isDone);
 
+    const handleCancel = () => {
+        // [NEW] Back logic
+        setFlowState("idle");
+    };
+
     return (
         <Box maxW="600px" mx="auto" py={10}>
             <Card shadow="xl" borderRadius="20px">
                 <VStack spacing={6}>
-                    <Heading size="md" color="purple.600">👥 회의 참가자 목소리 등록</Heading>
+                    <HStack w="full" justify="space-between">
+                        <Heading size="md" color="purple.600">👥 회의 참가자 목소리 등록</Heading>
+                        <Button size="xs" variant="ghost" onClick={handleCancel}>나가기</Button>
+                    </HStack>
+
                     <Text fontSize="sm" color="gray.500" textAlign="center">
                         정확한 화자 분리를 위해 참가자의 목소리를 20초간 등록합니다.<br />
                         <b>[녹음시작]</b> 버튼을 누른 후 아래 가이드 문구를 편하게 읽어주세요.
@@ -166,6 +176,11 @@ const SpeakerRegistrationView = () => {
                     >
                         {backendStatus === "connected" ? "회의 시작하기" : "엔진 로딩 대기 중..."}
                     </Button>
+
+                    <Button size="sm" variant="link" color="gray.500" onClick={handleCancel}>
+                        등록 취소하고 돌아가기
+                    </Button>
+
                     {!hasAnyRegistered && <Text fontSize="xs" color="red.400">최소 1명 이상의 화자를 등록해야 합니다.</Text>}
                     {hasAnyRegistered && backendStatus !== "connected" && (
                         <Text fontSize="xs" color="orange.500">엔진이 준비되면 녹음된 목소리가 자동으로 등록됩니다.</Text>

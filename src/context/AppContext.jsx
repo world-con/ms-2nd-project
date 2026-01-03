@@ -22,10 +22,12 @@ export const AppProvider = ({ children }) => {
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
-  const [flowState, setFlowState] = useState("idle") // 'idle' | 'recording' | 'saving' | 'completed'
+  const [flowState, setFlowState] = useState("idle") // 'idle' | 'registration' | 'recording' | 'saving' | 'completed'
   const [backendStatus, setBackendStatus] = useState("disconnected")
   const [transcript, setTranscript] = useState("")
-  const [realtimeSegments, setRealtimeSegments] = useState([]) // [NEW] 실시간 화자 분리 데이터
+  const [realtimeSegments, setRealtimeSegments] = useState([])
+  const [registeredSpeakers, setRegisteredSpeakers] = useState([]) // [NEW] 등록 완료된 화자 목록
+  const [pendingRegistrations, setPendingRegistrations] = useState([]) // [NEW] 서버 연결 전 임시 보관함
   const [aiSummary, setAiSummary] = useState("")
 
   const [aiMessages, setAiMessages] = useState([
@@ -78,9 +80,27 @@ export const AppProvider = ({ children }) => {
     warmupAndConnect();
     return () => {
       clearTimeout(reconnectTimer);
-      // 앱 종료 시 소켓 닫음 (컴포넌트 unmount 시 아님)
     };
   }, []);
+
+  // [NEW] 서버 연결 시 예약된 화자 등록 자동 전송
+  useEffect(() => {
+    if (backendStatus === "connected" && pendingRegistrations.length > 0) {
+      const flushRegistrations = async () => {
+        console.log("🚀 Flushing pending registrations...");
+        for (const reg of pendingRegistrations) {
+          try {
+            await handleRegisterSpeaker(reg.name, reg.email, reg.blob);
+            // 성공 시 pending에서 제거는 마지막에 일괄 처리하거나 개별 처리
+          } catch (e) {
+            console.error("Flush failed for", reg.name, e);
+          }
+        }
+        setPendingRegistrations([]); // 전송 시도 후 큐 초기화
+      };
+      flushRegistrations();
+    }
+  }, [backendStatus, pendingRegistrations.length]);
 
   // 2. 타이머 로직 (기본 녹음 시간 & 30초 단위 데이터 요청)
   useEffect(() => {
@@ -122,6 +142,34 @@ export const AppProvider = ({ children }) => {
   };
 
   // 4. 액션 핸들러
+  const handleStartMeetingFlow = () => {
+    // [NEW] 바로 녹음 안 하고 등록 단계로 진입
+    setFlowState("registration");
+  };
+
+  const handleRegisterSpeaker = async (name, email, audioBlob) => {
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("email", email || "");
+    formData.append("consent", "true");
+    formData.append("file", audioBlob, "registration.webm");
+
+    // 서버가 아직 연결 전이라면 큐에 담기만 함
+    if (backendStatus !== "connected") {
+      setPendingRegistrations(prev => [...prev, { name, email, blob: audioBlob }]);
+      return { status: "queued" };
+    }
+
+    try {
+      const resp = await axios.post(`${WHISPER_BACKEND_URL}/register_speaker`, formData);
+      setRegisteredSpeakers((prev) => [...prev, name]);
+      return resp.data;
+    } catch (e) {
+      console.error("Speaker registration fail", e);
+      throw e;
+    }
+  };
+
   const handleStartRecording = () => {
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
@@ -217,7 +265,11 @@ export const AppProvider = ({ children }) => {
     handleStopRecordingFlow,
     handleResetMeeting,
     startMeeting,
-    realtimeSegments, setRealtimeSegments, // 외부에 노출
+    realtimeSegments, setRealtimeSegments,
+    handleStartMeetingFlow,
+    handleRegisterSpeaker,
+    registeredSpeakers, setRegisteredSpeakers,
+    pendingRegistrations, // 노출
   }
 
 

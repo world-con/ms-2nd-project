@@ -186,9 +186,8 @@ async def upload_file(
             error_msg = f"'{target_category}' 카테고리는 {file_ext} 형식을 지원하지 않습니다. (지원: {', '.join(allowed_list)})"
             raise HTTPException(status_code=400, detail=error_msg)
 
-        # 3. 임시 파일 저장 (Azure App Service 권한 대응 - /tmp 또는 시스템 임시 폴더 사용)
-        import tempfile
-        temp_dir = os.path.join(tempfile.gettempdir(), "temp_uploads")
+        # 3. 임시 파일 저장
+        temp_dir = "temp_uploads"
         os.makedirs(temp_dir, exist_ok=True)
         file_path = os.path.join(temp_dir, file.filename)
         
@@ -354,12 +353,11 @@ def delete_endpoint(request: DeleteRequest):
 @api_router.post("/generate-minutes")
 async def generate_minutes(data: MeetingSummaryData):
     try:
-        # 1. 작업용 임시 폴더 생성 (Azure App Service 권한 대응)
-        import tempfile
-        temp_dir = os.path.join(tempfile.gettempdir(), "temp_processing")
+        # 1. 작업용 임시 폴더 생성
+        temp_dir = "temp_processing"
         os.makedirs(temp_dir, exist_ok=True)
         
-        # 기본 템플릿 경로
+        # 기본 템플릿 경로 (프로젝트 루트에 default_template.docx 필수!)
         default_template_name = "default_template.docx"
         local_template_path = os.path.join(temp_dir, "current_template.docx")
         

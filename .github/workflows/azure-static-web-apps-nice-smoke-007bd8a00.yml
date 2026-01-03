@@ -28,7 +28,7 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           app_location: "/" # App source code path
-          api_location: "Backend" # [수정됨] api -> Backend
+          api_location: "api" # [수정됨] api -> Backend
           output_location: "dist" # Built app content directory
           ###### End of Repository/Build Configurations ######
         env:

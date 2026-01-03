@@ -62,16 +62,28 @@ const SpeakerRegistrationView = () => {
             setSpeakers(prev => prev.map(s => s.id === id ? { ...s, isRecording: true, progress: 0 } : s));
 
             let p = 0;
+            // [Modified] 40초 기준 (1초에 2.5%씩 증가)
             const interval = setInterval(() => {
-                p += 5;
+                p += 2.5;
                 setSpeakers(prev => prev.map(s => s.id === id ? { ...s, progress: p } : s));
                 if (p >= 100) {
                     clearInterval(interval);
-                    mr.stop();
-                    stream.getTracks().forEach(t => t.stop());
+                    if (mr.state === "recording") {
+                        mr.stop();
+                        stream.getTracks().forEach(t => t.stop());
+                    }
                     setActiveId(null);
                 }
             }, 1000);
+
+            // [NEW] 수동 종료를 위한 onstop 핸들러 보강 (progress interval 정리)
+            const originalOnStop = mr.onstop;
+            mr.onstop = async () => {
+                clearInterval(interval); // 수동 종료 시 타이머 즉시 해제
+                stream.getTracks().forEach(t => t.stop());
+                setActiveId(null);
+                await originalOnStop();
+            };
         });
     };
 
@@ -152,16 +164,24 @@ const SpeakerRegistrationView = () => {
                                 />
                                 <Button
                                     size="sm"
-                                    colorScheme={s.isDone ? "green" : "purple"}
+                                    colorScheme={s.isDone ? "green" : (s.isRecording ? "red" : "purple")}
                                     onClick={() => {
-                                        if (!isAgreed) return alert("먼저 개인정보 활용 동의에 체크해주세요.");
-                                        startRegRecording(s.id);
+                                        if (s.isRecording) {
+                                            // [NEW] 녹음 중 클릭 시 수동 종료
+                                            const mr = speakerMediaRef.current;
+                                            if (mr && mr.state === "recording") {
+                                                mr.stop();
+                                            }
+                                        } else {
+                                            if (!isAgreed) return alert("먼저 개인정보 활용 동의에 체크해주세요.");
+                                            startRegRecording(s.id);
+                                        }
                                     }}
-                                    isLoading={s.isRecording}
-                                    isDisabled={s.isDone || (activeId !== null && activeId !== s.id)}
+                                    isDisabled={s.isDone || (activeId !== null && activeId !== s.id && !s.isRecording)}
                                     w="100px"
+                                    _hover={{ transform: "scale(1.05)" }}
                                 >
-                                    {s.isDone ? (s.isQueued ? "전송대기" : "등록완료") : "녹음시작"}
+                                    {s.isDone ? (s.isQueued ? "전송대기" : "등록완료") : (s.isRecording ? "중단하기" : "녹음시작")}
                                 </Button>
                             </HStack>
                         ))}
@@ -171,10 +191,11 @@ const SpeakerRegistrationView = () => {
                         size="lg"
                         colorScheme="purple"
                         w="full"
-                        isDisabled={!hasAnyRegistered || backendStatus !== "connected"}
+                        isDisabled={!hasAnyRegistered}
                         onClick={handleStartRecording}
+                        boxShadow="lg"
                     >
-                        {backendStatus === "connected" ? "회의 시작하기" : "엔진 로딩 대기 중..."}
+                        회의 시작하기
                     </Button>
 
                     <Button size="sm" variant="link" color="gray.500" onClick={handleCancel}>

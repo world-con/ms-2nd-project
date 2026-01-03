@@ -24,7 +24,7 @@ import { mockMeetingResult } from "../data/mockData";
 import axios from "axios";
 import { useAppContext } from "../context/AppContext";
 
-const API_URL = import.meta.env.VITE_API_URL || "";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 const WHISPER_BACKEND_URL = import.meta.env.VITE_WHISPER_BACKEND_URL || "https://ieum-stt.livelymushroom-0e97085f.australiaeast.azurecontainerapps.io";
 
 
@@ -104,7 +104,7 @@ function Result() {
           // 회의 스크립트에서 참석자 이름 추출 (대괄호 안의 이름들)
           const extractedNames = [
             ...new Set(
-              (savedTranscript.match(/\[([^\]]+)\]/g) || []).map((match) =>
+              (targetTranscript.match(/\[([^\]]+)\]/g) || []).map((match) =>
                 match.replace(/[\[\]]/g, "")
               )
             ),

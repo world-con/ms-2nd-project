@@ -26,7 +26,7 @@ import {
 import Card from "../components/Card";
 import { useAppContext } from "../context/AppContext";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 function Home() {
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ function Home() {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await axios.get("/api/dashboard-data");
+        const response = await axios.get(`${API_URL}/dashboard-data`);
 
         if (response.data.status === "success") {
           // 1. 회의 목록 저장

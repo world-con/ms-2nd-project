@@ -42,6 +42,8 @@ function Meeting() {
     flowState,
     backendStatus,
     aiMessages, setAiMessages,
+    handleStartMeetingFlow,
+    handleRegisterSpeaker,
     handleStartRecording,
     handlePauseResume,
     handleStopRecordingFlow,

@@ -21,10 +21,12 @@ app = FastAPI()
 # 1. CORS 설정 (프론트엔드 포트 허용)
 # ==========================================
 origins = [
-    "http://localhost:5173",    # Vite 기본 포트
-    "http://localhost:5174",    # 추가 Vite 포트
-    "http://localhost:5175",    # 추가 Vite 포트
-    "http://localhost:3000",    # CRA 기본 포트
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:3000",
+    "https://delightful-flower-067bc1800.4.azurestaticapps.net",
+    "https://nice-smoke-007bd8a00.azurestaticapps.net",
 ]
 
 app.add_middleware(
@@ -34,6 +36,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# [주의] Azure SWA가 이미 /api 경로를 처리하므로, 코드 내부에서는 prefix를 사용하지 않습니다.
+from fastapi import APIRouter
+api_router = APIRouter() 
 
 # ==========================================
 # 2. 데이터 모델 정의
@@ -74,12 +80,12 @@ TEAM_MEMBERS = [
 # ==========================================
 # 3. API 엔드포인트
 # ==========================================
-@app.get("/")
+@api_router.get("/")
 def read_root():
     return {"status": "Backend is running"}
 
 # [파일 목록 조회]
-@app.get("/files")
+@api_router.get("/files")
 def get_uploaded_files():
     try:
         # Azure AI Search에서 모든 문서의 메타데이터 조회 (필요한 필드만)
@@ -119,7 +125,7 @@ def get_uploaded_files():
         raise HTTPException(status_code=500, detail=str(e))
 
 # [대시보드 데이터 조회]
-@app.get("/dashboard-data")
+@api_router.get("/dashboard-data")
 def get_dashboard_data():
     # 실제 운영 환경에선 DB나 Azure AI Search에서 집계하여 가져와야 함.
     # 현재는 프론트엔드 연동을 위해 더미 데이터를 반환.
@@ -156,7 +162,7 @@ ALLOWED_EXTENSIONS = {
 }
 
 # [파일 업로드]
-@app.post("/upload")
+@api_router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...), 
     category: str = Form(...) # 'ieum'(history), 'custom'(style), 'external'(reference)
@@ -209,7 +215,7 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 # [채팅 / 질문하기]
-@app.post("/chat")
+@api_router.post("/chat")
 def chat_endpoint(request: ChatRequest):
     try:
         # LLM Agent 호출 (RAG 검색 및 일정 등록 도구 활용)
@@ -219,7 +225,7 @@ def chat_endpoint(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # [회의 심층 분석]
-@app.post("/analyze-meeting")
+@api_router.post("/analyze-meeting")
 async def analyze_meeting(request: MeetingSummaryData):
     print("🧠 회의 심층 분석 시작...")
     try:
@@ -234,7 +240,7 @@ async def analyze_meeting(request: MeetingSummaryData):
         raise HTTPException(status_code=500, detail=str(e))
 
 # [자동화 액션 실행]
-@app.post("/execute-action")
+@api_router.post("/execute-action")
 async def execute_action(request: MeetingSummaryData):
     print("🚀 자동화 액션(메일 발송) 시작...")
     try:
@@ -268,7 +274,7 @@ async def execute_action(request: MeetingSummaryData):
         raise HTTPException(status_code=500, detail=str(e))
 
 # [Microsoft Outlook 연동]
-@app.post("/approve-calendar")
+@api_router.post("/approve-calendar")
 async def approve_calendar(item: CalendarRequest):
     print(f"📆 일정 등록 요청: {item.title} ({item.date} {item.time})")
     try:
@@ -307,7 +313,7 @@ async def approve_calendar(item: CalendarRequest):
         print(f"❌ 일정 등록 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/create-outlook-task")
+@api_router.post("/create-outlook-task")
 async def create_outlook_task(request: TodoRequest):
     print(f"📝 할 일 등록 요청: {request.title} (기한: {request.due_date})")
     try:
@@ -325,7 +331,7 @@ async def create_outlook_task(request: TodoRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # [파일 삭제]
-@app.delete("/delete")
+@api_router.delete("/delete")
 def delete_endpoint(request: DeleteRequest):
     try:
         category_map = {
@@ -344,7 +350,7 @@ def delete_endpoint(request: DeleteRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # [커스텀 회의록 파일 생성]
-@app.post("/generate-minutes")
+@api_router.post("/generate-minutes")
 async def generate_minutes(data: MeetingSummaryData):
     try:
         # 1. 작업용 임시 폴더 생성
@@ -411,10 +417,11 @@ async def generate_minutes(data: MeetingSummaryData):
         print(f"❌ 문서 생성 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+app.include_router(api_router)
+
 # ==========================================
 # 메인 실행
 # ==========================================
 # if __name__ == "__main__":
 #     import uvicorn
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
-        raise HTTPException(status_code=500, detail=str(e))

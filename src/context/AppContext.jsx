@@ -38,6 +38,8 @@ export const AppProvider = ({ children }) => {
   const chunkIndexRef = useRef(0);
   const chunkTimerRef = useRef(null);
   const recordingTimerRef = useRef(null);
+  const isRecordingRef = useRef(false); // [v8.2] onstop 제어용
+  const isPausedRef = useRef(false);    // [v8.2] onstop 제어용
 
   // 1. 백엔드 예열 & 소켓 연결 (로그인 시 또는 앱 시작 시)
   useEffect(() => {
@@ -92,7 +94,8 @@ export const AppProvider = ({ children }) => {
       // 이전에 'stale closure' 문제가 있던 setInterval을 여기로 옮겼습니다.
       chunkTimerRef.current = setInterval(() => {
         if (mediaRecorderRef.current?.state === "recording") {
-          mediaRecorderRef.current.requestData();
+          // [v8.2] requestData() 대신 stop() 호출 -> onstop에서 새 독립 파일 생성
+          mediaRecorderRef.current.stop();
         }
       }, 30000);
     } else {
@@ -122,13 +125,24 @@ export const AppProvider = ({ children }) => {
   const handleStartRecording = () => {
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) uploadChunk(e.data); };
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) uploadChunk(e.data);
+      };
+
+      // [v8.2] Stop-Restart 핵심: 멈췄을 때 녹음 상태라면 즉시 다시 시작
+      mediaRecorder.onstop = () => {
+        if (isRecordingRef.current && !isPausedRef.current) {
+          mediaRecorder.start();
+        }
+      };
+
       mediaRecorder.start();
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
+      isRecordingRef.current = true; // Ref로 즉시 상태 관리 (onstop 대응)
       setFlowState("recording");
       setRecordingTime(0);
-      // (기존의 setInterval 코드는 위쪽 useEffect로 통합 이동됨)
 
     }).catch(err => {
       alert("마이크 권한이 필요합니다.");
@@ -140,22 +154,23 @@ export const AppProvider = ({ children }) => {
     if (!mediaRecorderRef.current) return;
 
     if (mediaRecorderRef.current.state === "recording") {
-      // 일시정지 직전 현재까지 녹음된 데이터를 강제로 전송 (Flush)
-      mediaRecorderRef.current.requestData();
-      mediaRecorderRef.current.pause();
+      // 일시정지 직전 현재까지 녹음된 데이터를 강제로 전송 (Stop-Restart 전략에 맞춤)
+      mediaRecorderRef.current.stop();
       setIsPaused(true);
+      isPausedRef.current = true;
     } else if (mediaRecorderRef.current.state === "paused") {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
+      isPausedRef.current = false;
     }
   };
 
 
   const handleStopRecordingFlow = async () => {
     setIsRecording(false);
+    isRecordingRef.current = false;
     setFlowState("saving");
     if (mediaRecorderRef.current?.state !== "inactive") {
-      mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
     }
     clearInterval(chunkTimerRef.current);

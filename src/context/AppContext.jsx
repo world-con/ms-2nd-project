@@ -143,7 +143,6 @@ export const AppProvider = ({ children }) => {
 
   // 4. 액션 핸들러
   const handleStartMeetingFlow = () => {
-    // [NEW] 바로 녹음 안 하고 등록 단계로 진입
     setFlowState("registration");
   };
 
@@ -269,7 +268,7 @@ export const AppProvider = ({ children }) => {
     handleStartMeetingFlow,
     handleRegisterSpeaker,
     registeredSpeakers, setRegisteredSpeakers,
-    pendingRegistrations, // 노출
+    pendingRegistrations,
   }
 
 

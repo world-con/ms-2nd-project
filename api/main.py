@@ -37,9 +37,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# [주의] Azure SWA가 이미 /api 경로를 처리하므로, 코드 내부에서는 prefix를 사용하지 않습니다.
+# [중요] Azure SWA의 'Linked Web App'은 /api/* 요청을 백엔드로 그대로 프록시합니다.
+# 따라서 모든 엔드포인트는 /api 접두사를 가져야 합니다.
 from fastapi import APIRouter
-api_router = APIRouter() 
+api_router = APIRouter(prefix="/api") 
 
 # ==========================================
 # 2. 데이터 모델 정의

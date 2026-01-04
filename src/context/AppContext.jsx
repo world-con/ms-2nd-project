@@ -68,6 +68,18 @@ export const AppProvider = ({ children }) => {
           // [핵심] 백엔드에서 온 화자 분리 데이터를 실시간으로 누적
           setRealtimeSegments((prev) => [...prev, ...data.segments]);
         }
+        if (data.type === "speaker_correction") {
+          // [JANUS] 소급 수정 로직: 특정 SID 혹은 TempID를 가진 세그먼트의 화자 교체
+          setRealtimeSegments((prev) =>
+            prev.map((seg) => {
+              const isMatch = (data.sid && seg.sid === data.sid) || (seg.speaker === data.temp_id);
+              if (isMatch) {
+                return { ...seg, speaker: data.final_name, is_confirmed: true };
+              }
+              return seg;
+            })
+          );
+        }
       };
 
       socket.onclose = () => {

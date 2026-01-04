@@ -20,7 +20,7 @@ import {
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useNavigate } from "react-router-dom";
-import { FiMic, FiSquare, FiPause, FiPlay, FiSend } from "react-icons/fi";
+import { FiMic, FiSquare, FiPause, FiPlay, FiSend, FiCheckCircle, FiClock } from "react-icons/fi";
 import Card from "../components/Card";
 import SpeakerRegistrationView from "../components/SpeakerRegistrationView";
 import { useAppContext } from "../context/AppContext";
@@ -32,6 +32,11 @@ const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_WHISPER_BAC
 const pulse = keyframes`
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.2); opacity: 0.8; }
+`;
+
+const confirmFlash = keyframes`
+  0% { box-shadow: 0 0 0 0px rgba(72, 17, 191, 0.7); background-color: #4811BF; }
+  100% { box-shadow: 0 0 0 10px rgba(72, 17, 191, 0); }
 `;
 
 
@@ -327,7 +332,18 @@ function Meeting() {
               <VStack align="start" spacing={4}>
                 {realtimeSegments.map((seg, i) => (
                   <HStack key={i} align="start" w="full" spacing={3}>
-                    <Badge colorScheme="purple" variant="solid" px={2} borderRadius="full" flexShrink={0}>
+                    <Badge
+                      colorScheme={seg.is_confirmed ? "green" : "purple"}
+                      variant="solid"
+                      px={2}
+                      borderRadius="full"
+                      flexShrink={0}
+                      animation={seg.is_confirmed ? `${confirmFlash} 1s ease-out` : ""}
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                    >
+                      {seg.is_confirmed ? <FiCheckCircle size={10} /> : <FiClock size={10} />}
                       {seg.speaker}
                     </Badge>
                     <VStack align="start" spacing={0}>
@@ -336,6 +352,7 @@ function Meeting() {
                       </Text>
                       <Text fontSize="10px" color="gray.400">
                         {Math.floor(seg.start / 60)}:{(seg.start % 60).toFixed(0).padStart(2, '0')}
+                        {seg.is_confirmed && " • 확정됨"}
                       </Text>
                     </VStack>
                   </HStack>
